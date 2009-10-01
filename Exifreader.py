@@ -700,11 +700,11 @@ class IFD_Tag:
     def __str__(self):
         return self.printable
     
-    def __repr__(self):
-        return '(0x%04X) %s=%s @ %d' % (self.tag,
-                                        FIELD_TYPES[self.field_type][2],
-                                        self.printable,
-                                        self.field_offset)
+    # def __repr__(self):
+    #     return '(0x%04X) %s=%s @ %d' % (self.tag,
+    #                                     FIELD_TYPES[self.field_type][2],
+    #                                     self.printable,
+    #                                     self.field_offset)
 
 # class that handles an EXIF header
 class EXIF_header:

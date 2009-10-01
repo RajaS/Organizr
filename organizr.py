@@ -11,9 +11,9 @@ import Image
 import Exifreader
 
 
-ID_OPEN = wx.NewId()
-ID_SAVE = wx.NewId()
-ID_EXIT = wx.NewId()
+ID_OPEN = wx.NewId(); ID_SAVE = wx.NewId()
+ID_EXIT = wx.NewId(); ID_PREV = wx.NewId()
+ID_NEXT = wx.NewId()
 
 
 class Organizr(wx.App):
@@ -54,6 +54,7 @@ class MainFrame(wx.Frame):
         self.__set_bindings()
 
         self.current_dir = os.path.expanduser('~')
+        self.WRAPON = True
         
     def __set_properties(self):
         self.SetTitle("Organizr")
@@ -85,12 +86,21 @@ class MainFrame(wx.Frame):
         file_menu.Append(ID_SAVE, "&Save\tCtrl-S","Save Image")
         file_menu.Append(ID_EXIT, "&Exit\tCtrl-Q","Exit")
 
+        edit_menu = wx.Menu()
+        edit_menu.Append(ID_PREV, "&Prev", "Previous Image")
+        edit_menu.Append(ID_NEXT, "&Next", "Next Image")
+        
         menubar.Append(file_menu, "&File")
+        menubar.Append(edit_menu, "&Edit")
         self.SetMenuBar(menubar)
 
     def __set_bindings(self):
         self.Bind(wx.EVT_MENU, self.onopen, id=ID_OPEN)
+        self.Bind(wx.EVT_MENU, self.onprev, id=ID_PREV)
+        self.Bind(wx.EVT_MENU, self.onnext, id=ID_NEXT)
 
+        self.canvas.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
+                
     def onopen(self, event):
         """Open a new file"""
         filter = 'Image files|*.png;*.tif;*.tiff;*.jpg;*.jpeg;*.bmp|All files|*.*'
@@ -99,11 +109,48 @@ class MainFrame(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             self.filepath = dlg.GetPath()
             self.current_dir = os.path.dirname(self.filepath)
-            self.canvas.im.load(self.filepath)
+            #self.canvas.im.load(self.filepath)
             self.create_playlist()
+            self.exifinfo = ExifInfo(open(self.filepath, 'r'))
+            print self.exifinfo
         else:
             return
 
+    def onnext(self, event):
+        """display next image in the playlist.
+        At end of playlist, behave according to whether we want to wrap"""
+        self.nowshowing += 1
+        if self.nowshowing == len(self.playlist):
+            if self.WRAPON:
+                self.nowshowing = 0
+            else:
+                self.nowshowing -= 1
+        self.canvas.im.load()
+        self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
+
+    def onprev(self, event):
+        """display prev image in the playlist.
+        At beginning of playlist, behave according to whether we want to wrap"""
+        self.nowshowing -= 1
+        if self.nowshowing < 0:
+            if self.WRAPON:
+                self.nowshowing = len(self.playlist) - 1
+            else:
+                self.nowshowing = 0
+        self.canvas.im.load()
+        self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
+
+    def on_key_down(self, event):
+        """process key presses"""
+        print event.GetKeyCode()
+        keycode = event.GetKeyCode()
+        if keycode == 74: #'j'
+            self.onprev(event)
+        elif keycode == 75: #'k'
+            self.onnext(event)
+        else:
+            pass        
+        
     def create_playlist(self):
         """
         Make a playlist by listing all image files in the directory beginning
@@ -119,7 +166,7 @@ class MainFrame(wx.Frame):
                 self.playlist.append(os.path.join(dirname,eachfile))
         self.playlist.sort()
         self.nowshowing = self.playlist.index(self.filepath)
-
+        self.canvas.im.load()
         
 class ImageCanvas(wx.Panel):
     """panel where the images are displayed
@@ -128,7 +175,7 @@ class ImageCanvas(wx.Panel):
         """
 	"""
         wx.Panel.__init__(self, parent, -1)
-        #self.frame = wx.Gettoplevelparent(self)
+        self.frame = wx.GetTopLevelParent(self)
 
         self.NEEDREDRAW = False
         self.im = Im(self)
@@ -215,11 +262,13 @@ class Im():
         self.image = Image.new('RGB', (100,200), (255,255,255))
         self.canvas = parent
         
-    def load(self, filepath):
+    def load(self):
         """load as a wx bitmap"""
+        filepath = self.canvas.frame.playlist[self.canvas.frame.nowshowing]
         try:
             self.image = Image.open(filepath, 'r')
             self.canvas.NEEDREDRAW = True
+            self.canvas.frame.SetStatusText(os.path.basename(filepath))
         except:
             pass # TODO
 
@@ -227,7 +276,6 @@ class Im():
         """Load a list of images and construct a composite image"""
         print 'not implemented yet'
         pass
-
 
     def zoom(self, scale):
         """scale the bitmap by the given scale.
@@ -249,14 +297,67 @@ class ExifInfo():
     """exif information for an image"""
     def __init__(self, imagefilehandle):
         self.imagefilehandle = imagefilehandle
+        self.read_exif_info()
+        self.info = self.process_exif_info()
 
     def read_exif_info(self):
         """read the exif information"""
         try:
-            self.exifdata = Exifreader.process(self.imagefilehandle)
+            self.exifdata = Exifreader.process_file(self.imagefilehandle)
         except Exifreader.ExifError, msg:
             self. exifdata = None
 
+    def __repr__(self):
+        """formatted string of exif info"""
+        return '\n'.join(['Model : %s' %(self.info['Model']),
+                          'Time : %s' %(self.info['DateTime']),
+                          'Mode : %s' %(self.info['ExposureMode']),
+                          'ISO : %s' %(self.info['ISOSpeed']),
+                          'Aperture : %s' %(self.info['FNumber']),
+                          'Shutter time : %s' %(self.info['ExposureTime']),
+                          'Focal length : %s' %(self.info['FocalLength']),
+                          'Flash : %s' %(self.info['FlashMode']),
+                          'Lens : %s - %s' %(self.info['ShortFocalLengthOfLens'],
+                                             self.info['LongFocalLengthOfLens'])]) 
+            
+    def process_exif_info(self):
+        """Extract the useful info only"""
+        info = {}
+        data = self.exifdata
+        for key in data.keys():
+            for wanted_key in ['ExposureMode', 'DateTime',
+                               'ExposureTime', 'FocalLength',
+                               'FlashMode', 'ISOSpeed',
+                               'Model', 'Orientation',
+                               'FNumber', 'LongFocalLengthOfLens',
+                               'ShortFocalLengthOfLens']:
+                if wanted_key in key:
+                    info[wanted_key] = str(data[key])
+            
+            # if 'ExposureMode' in k:
+            #     info['ExposureMode'] = str(data[k])
+            # elif 'DateTime' in k:
+            #     info['Datetime'] = str(data[k])
+            # elif 'ExposureTime' in k:
+            #     info['ExposureTime'] = str(data[k])
+            # elif 'FocalLength' in k:
+            #     info['FocalLength'] = str(data[k])
+            # elif 'FlashMode' in k:
+            #     info['FlashMode'] = str(data[k])
+            # elif 'ISOSpeed' in k:
+            #     info['ISOSpeed'] = str(data[k])
+            # elif 'Model' in k:
+            #     info['Model'] = str(data[k])
+            # elif 'Orientation' in k:
+            #     info['Orientation'] = str(data[k])
+            # elif 'FNumber' in k:
+            #     info['FNumber'] = str(data[k])
+            # elif 'LongFocalLengthOfLens' in k:
+            #     info['LongFocalLengthOfLens'] = str(data[k])
+            # elif 'ShortFocalLengthOfLens'] in k:
+            #     info['ShortFocalLengthOfLens'] = str(data[k])
+
+        return info
 
 def main():
     """
