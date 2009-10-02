@@ -705,7 +705,7 @@ class IFD_Tag:
     #                                     FIELD_TYPES[self.field_type][2],
     #                                     self.printable,
     #                                     self.field_offset)
-
+ 
 # class that handles an EXIF header
 class EXIF_header:
     def __init__(self, file, endian, offset, debug=0):

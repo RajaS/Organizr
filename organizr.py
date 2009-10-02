@@ -33,6 +33,7 @@ class Organizr(wx.App):
 class MainFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, -1, "", style=wx.DEFAULT_FRAME_STYLE)
+        self.Maximize()
         
         self.splitter_1 = wx.SplitterWindow(self, -1, style=wx.SP_3D|wx.SP_BORDER)
         self.splitter_1_pane_2 = wx.Panel(self.splitter_1, -1)
@@ -43,7 +44,7 @@ class MainFrame(wx.Frame):
         self.splitter_2_pane_2 = wx.Panel(self.splitter_2, -1)
 
         self.splitter_3 = wx.SplitterWindow(self.splitter_2_pane_2, -1, style=wx.SP_3D|wx.SP_BORDER)
-        self.exifpanel = wx.Panel(self.splitter_3, -1, style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
+        self.exifpanel = wx.TextCtrl(self.splitter_3, -1, style=wx.RAISED_BORDER|wx.TE_MULTILINE)
         self.thumbnailpanel = wx.Panel(self.splitter_3, -1)
         
         self.statusbar = self.CreateStatusBar(2, 0)
@@ -52,13 +53,14 @@ class MainFrame(wx.Frame):
         self.__do_layout()
         self.__build_menubar()
         self.__set_bindings()
-
-        self.current_dir = os.path.expanduser('~')
-        self.WRAPON = True
         
     def __set_properties(self):
         self.SetTitle("Organizr")
-        self.SetSize((800, 600))
+
+        #variables and flags
+        self.current_dir = os.path.expanduser('~')
+        self.WRAPON = True # wrap around in playlist
+        self.AUTOROTATE = True # automatically rotate images
 
     def __do_layout(self):
         sizer_1 = wx.BoxSizer(wx.VERTICAL)
@@ -67,16 +69,16 @@ class MainFrame(wx.Frame):
         self.splitter_3.SplitHorizontally(self.exifpanel, self.thumbnailpanel, 453)
         sizer_3.Add(self.splitter_3, 1, wx.EXPAND, 0)
         self.splitter_2_pane_2.SetSizer(sizer_3)
-        self.splitter_2.SplitVertically(self.canvas, self.splitter_2_pane_2, 660)
+        self.splitter_2.SplitVertically(self.canvas, self.splitter_2_pane_2, 700)
         sizer_2.Add(self.splitter_2, 1, wx.EXPAND, 0)
         self.splitter_1_pane_2.SetSizer(sizer_2)
         self.splitter_1.SplitHorizontally(self.playlist_ribbon, self.splitter_1_pane_2, 110)
-        sizer_1.Add(self.splitter_1, 1, wx.EXPAND, 0)
+        sizer_1.Add(self.splitter_1, 1, wx.ALL|wx.EXPAND, 5)
         self.SetSizer(sizer_1)
         self.Layout()
         # have to set sash position again for splitter 3
-        self.splitter_3.SetSashPosition(250)
-
+        self.splitter_3.SetSashPosition(450)
+        
     def __build_menubar(self):
         """All the menu bar items go here"""
         menubar = wx.MenuBar()
@@ -100,7 +102,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.onnext, id=ID_NEXT)
 
         self.canvas.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
-                
+        
     def onopen(self, event):
         """Open a new file"""
         filter = 'Image files|*.png;*.tif;*.tiff;*.jpg;*.jpeg;*.bmp|All files|*.*'
@@ -109,10 +111,8 @@ class MainFrame(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             self.filepath = dlg.GetPath()
             self.current_dir = os.path.dirname(self.filepath)
-            #self.canvas.im.load(self.filepath)
             self.create_playlist()
-            self.exifinfo = ExifInfo(open(self.filepath, 'r'))
-            print self.exifinfo
+            self.load_new()
         else:
             return
 
@@ -125,9 +125,8 @@ class MainFrame(wx.Frame):
                 self.nowshowing = 0
             else:
                 self.nowshowing -= 1
-        self.canvas.im.load()
-        self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
-
+        self.load_new()
+        
     def onprev(self, event):
         """display prev image in the playlist.
         At beginning of playlist, behave according to whether we want to wrap"""
@@ -137,9 +136,15 @@ class MainFrame(wx.Frame):
                 self.nowshowing = len(self.playlist) - 1
             else:
                 self.nowshowing = 0
-        self.canvas.im.load()
+        self.load_new()
+                
+    def load_new(self):
+        """common things to do when a new image is loaded"""
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
-
+        self.canvas.im.load()
+        self.exifpanel.Clear()
+        self.exifpanel.WriteText(str(self.exifinfo))
+        
     def on_key_down(self, event):
         """process key presses"""
         print event.GetKeyCode()
@@ -256,9 +261,6 @@ class Im():
         """imagefilenames is a list of the filenames.
         for single image this is a singleton list.
         Multiple items indicate this is a series to be loaded"""
-        #self.imagefilenames = imagefilenames
-        #if len(imagefilenames) == 1:
-        #self.im = self.load(imagefilenames[0])
         self.image = Image.new('RGB', (100,200), (255,255,255))
         self.canvas = parent
         
@@ -267,10 +269,14 @@ class Im():
         filepath = self.canvas.frame.playlist[self.canvas.frame.nowshowing]
         try:
             self.image = Image.open(filepath, 'r')
-            self.canvas.NEEDREDRAW = True
-            self.canvas.frame.SetStatusText(os.path.basename(filepath))
         except:
-            pass # TODO
+            self.canvas.frame.SetStatusText('Could not load image')
+            return
+        
+        if self.canvas.frame.AUTOROTATE:
+            self.autorotate(self.canvas.frame.exifinfo.info["Orientation"])
+        self.canvas.NEEDREDRAW = True
+        self.canvas.frame.SetStatusText(os.path.basename(filepath))
 
     def load_multiple(self):
         """Load a list of images and construct a composite image"""
@@ -284,6 +290,17 @@ class Im():
         frame = []
         return frame
 
+    def autorotate(self, exif_orientation):
+        """Given the exif orientation tag, rotate the image"""
+        exif_orientation = int(exif_orientation)
+        if exif_orientation == 1:
+            return 
+        elif exif_orientation == 6:
+            self.image = self.image.rotate(-90)
+        elif exif_orientation == 8:
+            self.image = self.image.rotate(90)
+        elif exif_orientation == 3:
+            self.image = self.image.rotate(180)
     
 class Thumbnail():
     """thumbnail of the image"""
@@ -307,6 +324,9 @@ class ExifInfo():
         except Exifreader.ExifError, msg:
             self. exifdata = None
 
+    def __str__(self):
+        return repr(self)
+            
     def __repr__(self):
         """formatted string of exif info"""
         return '\n'.join(['Model : %s' %(self.info['Model']),
@@ -333,29 +353,6 @@ class ExifInfo():
                                'ShortFocalLengthOfLens']:
                 if wanted_key in key:
                     info[wanted_key] = str(data[key])
-            
-            # if 'ExposureMode' in k:
-            #     info['ExposureMode'] = str(data[k])
-            # elif 'DateTime' in k:
-            #     info['Datetime'] = str(data[k])
-            # elif 'ExposureTime' in k:
-            #     info['ExposureTime'] = str(data[k])
-            # elif 'FocalLength' in k:
-            #     info['FocalLength'] = str(data[k])
-            # elif 'FlashMode' in k:
-            #     info['FlashMode'] = str(data[k])
-            # elif 'ISOSpeed' in k:
-            #     info['ISOSpeed'] = str(data[k])
-            # elif 'Model' in k:
-            #     info['Model'] = str(data[k])
-            # elif 'Orientation' in k:
-            #     info['Orientation'] = str(data[k])
-            # elif 'FNumber' in k:
-            #     info['FNumber'] = str(data[k])
-            # elif 'LongFocalLengthOfLens' in k:
-            #     info['LongFocalLengthOfLens'] = str(data[k])
-            # elif 'ShortFocalLengthOfLens'] in k:
-            #     info['ShortFocalLengthOfLens'] = str(data[k])
 
         return info
 
