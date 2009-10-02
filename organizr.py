@@ -7,13 +7,15 @@ from __future__ import division
 import os
 import wx
 import Image
+import copy
 
 import Exifreader
 
 
 ID_OPEN = wx.NewId(); ID_SAVE = wx.NewId()
 ID_EXIT = wx.NewId(); ID_PREV = wx.NewId()
-ID_NEXT = wx.NewId()
+ID_NEXT = wx.NewId(); ID_ZOOMIN = wx.NewId()
+ID_ZOOMOUT = wx.NewId()
 
 
 class Organizr(wx.App):
@@ -91,15 +93,22 @@ class MainFrame(wx.Frame):
         edit_menu = wx.Menu()
         edit_menu.Append(ID_PREV, "&Prev", "Previous Image")
         edit_menu.Append(ID_NEXT, "&Next", "Next Image")
-        
+
+        view_menu = wx.Menu()
+        view_menu.Append(ID_ZOOMIN, "Zoomin", "Zoom in")
+        view_menu.Append(ID_ZOOMOUT, "Zoomout", "Zoom out")
+
         menubar.Append(file_menu, "&File")
         menubar.Append(edit_menu, "&Edit")
+        menubar.Append(view_menu, "&View")
         self.SetMenuBar(menubar)
 
     def __set_bindings(self):
         self.Bind(wx.EVT_MENU, self.onopen, id=ID_OPEN)
         self.Bind(wx.EVT_MENU, self.onprev, id=ID_PREV)
         self.Bind(wx.EVT_MENU, self.onnext, id=ID_NEXT)
+        self.Bind(wx.EVT_MENU, self.canvas.im.zoom_in, id=ID_ZOOMIN)
+        self.Bind(wx.EVT_MENU, self.canvas.im.zoom_out, id=ID_ZOOMOUT)
 
         self.canvas.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
         
@@ -149,10 +158,20 @@ class MainFrame(wx.Frame):
         """process key presses"""
         print event.GetKeyCode()
         keycode = event.GetKeyCode()
-        if keycode == 74: #'j'
+        if keycode == 79: #'o'
+            self.onopen(event)
+        elif keycode == 74: #'j'
             self.onprev(event)
         elif keycode == 75: #'k'
             self.onnext(event)
+        elif keycode == 46: # '>'
+            self.canvas.im.zoom_in(event)
+        elif keycode == 44: # '<'
+            self.canvas.im.zoom_out(event)
+        elif keycode == 61: #'='
+            self.canvas.im.no_zoom(event)
+        elif keycode in [314, 315, 316, 317]: #arrow keys
+            self.canvas.im.shift_zoom_frame(event)
         else:
             pass        
         
@@ -171,7 +190,7 @@ class MainFrame(wx.Frame):
                 self.playlist.append(os.path.join(dirname,eachfile))
         self.playlist.sort()
         self.nowshowing = self.playlist.index(self.filepath)
-        self.canvas.im.load()
+        #self.canvas.im.load()
         
 class ImageCanvas(wx.Panel):
     """panel where the images are displayed
@@ -184,6 +203,9 @@ class ImageCanvas(wx.Panel):
 
         self.NEEDREDRAW = False
         self.im = Im(self)
+        self.zoom_ratio = 1
+        self.zoom_xoffset = None
+        self.zoom_yoffset = None
         
         self.Bind(wx.EVT_SIZE, self.OnResize)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
@@ -218,10 +240,11 @@ class ImageCanvas(wx.Panel):
     
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
+        print 'zoom and resize'
         image = self.im.image
-        imagewidth, imageheight = image.size
-
+        
         # What drives the scaling - height or width
+        imagewidth, imageheight = image.size
         if imagewidth / imageheight > self.width / self.height:
             self.scalingvalue = self.width / imagewidth
         else:
@@ -233,9 +256,11 @@ class ImageCanvas(wx.Panel):
         self.resizedimage = image.resize((self.resized_width,
                                           self.resized_height)
                                              , Image.ANTIALIAS)
-        
+
+        print 'new size', self.resizedimage.size
         # blit the image centerd in x and y axes
         self.bmp = self.ImageToBitmap(self.resizedimage)
+
         self.imagedc = wx.MemoryDC()
         self.imagedc.SelectObject(self.bmp)
         self.xoffset = (self.width-self.resized_width)/2
@@ -246,12 +271,17 @@ class ImageCanvas(wx.Panel):
         newimage.SetData(img.convert( "RGB").tostring())
         bmp = newimage.ConvertToBitmap()
         return bmp
- 
+
     def Draw(self, dc):
         """Redraw the image"""
-        # blit the buffer on to the screen 
+        # blit the buffer on to the screen
+        print 'redrawing'
+        w, h = self.im.image.size
         dc.Blit(self.xoffset, self.yoffset,
-                self.resized_width, self.resized_height, self.imagedc, 0, 0)
+                self.resized_width, self.resized_height, self.imagedc,
+                0, 0)
+        # dc.Blit(self.xoffset, self.yoffset,
+        #         self.resized_width/2, self.resized_height/2, self.imagedc, 0, 0)
         self.NEEDREDRAW = False 
 
  
@@ -263,18 +293,27 @@ class Im():
         Multiple items indicate this is a series to be loaded"""
         self.image = Image.new('RGB', (100,200), (255,255,255))
         self.canvas = parent
+
+        self.ZOOMSTEP = 1.1
+        self.SHIFTZOOMSTEP = 5
         
     def load(self):
         """load as a wx bitmap"""
         filepath = self.canvas.frame.playlist[self.canvas.frame.nowshowing]
         try:
-            self.image = Image.open(filepath, 'r')
+            self.original_image = Image.open(filepath, 'r')
         except:
             self.canvas.frame.SetStatusText('Could not load image')
             return
         
         if self.canvas.frame.AUTOROTATE:
             self.autorotate(self.canvas.frame.exifinfo.info["Orientation"])
+
+        self.width, self.height = self.original_image.size
+        self.zoom_xoffset = None; self.zoom_yoffset = None
+        self.zoom_ratio = 1
+        self.zoom()
+            
         self.canvas.NEEDREDRAW = True
         self.canvas.frame.SetStatusText(os.path.basename(filepath))
 
@@ -283,13 +322,70 @@ class Im():
         print 'not implemented yet'
         pass
 
-    def zoom(self, scale):
+    def zoom(self):
         """scale the bitmap by the given scale.
         use to zoom in or zoom out.
-        return the viewing frame"""
+        Scale goes from 1 (fit to window) upwards
+        as multiple of that size
+        If offsets are not given center the zoom
+        """
+        scale = self.zoom_ratio
+        xoffset = self.zoom_xoffset; yoffset = self.zoom_yoffset
         frame = []
-        return frame
+        newwidth = self.width / scale
+        newheight = self.height / scale
+        
+        if not self.zoom_xoffset:
+            self.zoom_xoffset = (self.width - newwidth) / 2
+        else:
+            self.zoom_xoffset = min(self.zoom_xoffset, (self.width - newwidth) / 2)
 
+        if not self.zoom_yoffset:
+            self.zoom_yoffset = (self.height - newheight) / 2
+        else:
+            self.zoom_yoffset = min(self.zoom_yoffset, (self.height - newheight) / 2)
+
+        zoomframe = [self.zoom_xoffset, self.zoom_yoffset,
+                     self.zoom_xoffset + newwidth, self.zoom_yoffset + newheight]
+        #
+        if self.zoom_xoffset < 0:
+            self.zoom_xoffset = 0
+        if self.zoom_yoffset < 0:
+            self.zoom_yoffset = 0
+        
+        self.image = self.original_image.crop(zoomframe)
+        self.canvas.NEEDREDRAW = True
+
+    def zoom_in(self, event):
+        """zoom into the image"""
+        self.zoom_ratio *= self.ZOOMSTEP
+        self.zoom()
+
+    def zoom_out(self, event):
+        """zoom out"""
+        self.zoom_ratio /= self.ZOOMSTEP
+        self.zoom_ratio = max(self.zoom_ratio, 1) # cant go below 1
+        self.zoom()
+
+    def no_zoom(self, event):
+        """Reset zoom"""
+        self.zoom_ratio = 1
+        self.zoom()
+
+    def shift_zoom_frame(self, event):
+        key = event.GetKeyCode()
+
+        if key == 314:
+            self.zoom_xoffset += self.SHIFTZOOMSTEP
+        elif key == 315:
+            self.zoom_yoffset += self.SHIFTZOOMSTEP
+        elif key == 316:
+            self.zoom_xoffset -= self.SHIFTZOOMSTEP
+        elif key == 317:
+            self.zoom_yoffset -= self.SHIFTZOOMSTEP
+
+        self.zoom()
+        
     def autorotate(self, exif_orientation):
         """Given the exif orientation tag, rotate the image"""
         exif_orientation = int(exif_orientation)
@@ -301,7 +397,7 @@ class Im():
             self.image = self.image.rotate(90)
         elif exif_orientation == 3:
             self.image = self.image.rotate(180)
-    
+     
 class Thumbnail():
     """thumbnail of the image"""
     def __init__(self, imagefilename):
