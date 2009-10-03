@@ -47,7 +47,7 @@ class MainFrame(wx.Frame):
 
         self.splitter_3 = wx.SplitterWindow(self.splitter_2_pane_2, -1, style=wx.SP_3D|wx.SP_BORDER)
         self.exifpanel = wx.TextCtrl(self.splitter_3, -1, style=wx.RAISED_BORDER|wx.TE_MULTILINE)
-        self.thumbnailpanel = wx.Panel(self.splitter_3, -1)
+        self.thumbnailpanel = ThumbnailCanvas(self.splitter_3)
         
         self.statusbar = self.CreateStatusBar(2, 0)
 
@@ -210,7 +210,8 @@ class ImageCanvas(wx.Panel):
         self.Bind(wx.EVT_SIZE, self.OnResize)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
         self.Bind(wx.EVT_PAINT, self.OnPaint) 
-
+        self.SetFocus() # to catch key events
+        
     def OnIdle(self, event):
         """Redraw if there is a change"""
         if self.NEEDREDRAW:
@@ -305,7 +306,8 @@ class Im():
         except:
             self.canvas.frame.SetStatusText('Could not load image')
             return
-        
+
+        # depending on orientation info in exif, rotate the image
         if self.canvas.frame.AUTOROTATE:
             self.autorotate(self.canvas.frame.exifinfo.info["Orientation"])
 
@@ -398,13 +400,14 @@ class Im():
         elif exif_orientation == 3:
             self.image = self.image.rotate(180)
      
-class Thumbnail():
-    """thumbnail of the image"""
-    def __init__(self, imagefilename):
+class ThumbnailCanvas(ImageCanvas):
+    """panel to draw the thumbnail of the image"""
+    def __init__(self, parent):
         """imagefilename is filename of the single image
         or the name of the first in series for a series of images"""
-        self.imagefilename = imagefilename
-        pass
+        ImageCanvas.__init__(self, parent)
+        self.im = Im(self, THUMBNAIL=True)
+
         
 class ExifInfo():
     """exif information for an image"""
