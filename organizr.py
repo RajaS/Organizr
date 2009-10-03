@@ -50,10 +50,11 @@ class MainFrame(wx.Frame):
         self.Maximize()
         # need to have this ready before imagecanvas and thumbnail canvas are initialized
         self.im = Im(self) 
+        self.preview = Series_Preview([])
         
         self.splitter_1 = wx.SplitterWindow(self, -1, style=wx.SP_3D|wx.SP_BORDER)
         self.splitter_1_pane_2 = wx.Panel(self.splitter_1, -1)
-        self.playlist_ribbon = wx.Panel(self.splitter_1, -1, style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
+        self.playlistcanvas = PlayListCanvas(self.splitter_1) #style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
 
         self.splitter_2 = wx.SplitterWindow(self.splitter_1_pane_2, -1, style=wx.SP_3D|wx.SP_BORDER)
         self.canvas = ImageCanvas(self.splitter_2 )#, -1, style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
@@ -88,7 +89,7 @@ class MainFrame(wx.Frame):
         self.splitter_2.SplitVertically(self.canvas, self.splitter_2_pane_2, 700)
         sizer_2.Add(self.splitter_2, 1, wx.EXPAND, 0)
         self.splitter_1_pane_2.SetSizer(sizer_2)
-        self.splitter_1.SplitHorizontally(self.playlist_ribbon, self.splitter_1_pane_2, 110)
+        self.splitter_1.SplitHorizontally(self.playlistcanvas, self.splitter_1_pane_2, 110)
         sizer_1.Add(self.splitter_1, 1, wx.ALL|wx.EXPAND, 5)
         self.SetSizer(sizer_1)
         self.Layout()
@@ -165,7 +166,6 @@ class MainFrame(wx.Frame):
         """common things to do when a new image is loaded"""
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
         self.im.load()
-        #self.thumbnailpanel.im.load()
         self.exifpanel.Clear()
         self.exifpanel.WriteText(str(self.exifinfo))
         
@@ -205,7 +205,9 @@ class MainFrame(wx.Frame):
                 self.playlist.append(os.path.join(dirname,eachfile))
         self.playlist.sort()
         self.nowshowing = self.playlist.index(self.filepath)
-        #self.im.load()
+        self.preview  = Series_Preview(self.playlist)
+        self.playlistcanvas.NEEDREDRAW = True
+
 
 class DisplayCanvas(wx.Panel):
     """A panel that can be subclassed and used for displaying images"""
@@ -223,7 +225,6 @@ class DisplayCanvas(wx.Panel):
             dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
                                wx.BUFFER_CLIENT_AREA)
             dc.Clear()  #clear old image if still there        
-            #self.resize_image()
             self.Draw(dc)
             self.NEEDREDRAW = False
 
@@ -264,16 +265,6 @@ class DisplayCanvas(wx.Panel):
         self.xoffset = (self.width-self.resized_width)/2
         self.yoffset = (self.height-self.resized_height)/2
 
-        # self.resizedimage = image.resize((self.resized_width,
-        #                                   self.resized_height)
-        #                                      , Image.ANTIALIAS)
-
-        # # blit the image centerd in x and y axes
-        # self.bmp = self.ImageToBitmap(self.resizedimage)
-
-        # self.imagedc = wx.MemoryDC()
-        # self.imagedc.SelectObject(self.bmp)
-
     def Draw(self, dc):
         """Drawing routine.Implement in subclass"""
         pass
@@ -287,8 +278,6 @@ class ImageCanvas(DisplayCanvas):
         DisplayCanvas.__init__(self, parent)
         self.frame = wx.GetTopLevelParent(self)
 
-        #self.xoffset = 0; self.yoffset = 0
-        #self.resized_width = 0; self.resized_height = 0
         self.zoom_ratio = 1
         self.zoom_xoffset = None
         self.zoom_yoffset = None
@@ -322,6 +311,38 @@ class ImageCanvas(DisplayCanvas):
                 0, 0)
         self.NEEDREDRAW = False 
 
+
+class PlayListCanvas(DisplayCanvas):
+    """Display list of images """
+    def __init__(self, parent):
+        DisplayCanvas.__init__(self, parent)
+        self.frame = wx.GetTopLevelParent(self)
+        
+    def resize_image(self):
+        """Process the image by resizing to best fit current size"""
+        image = self.frame.preview.composite
+        imagewidth, imageheight = image.size
+
+        self.get_resize_params(imagewidth, imageheight)
+        
+        self.resizedimage = image.resize((self.resized_width,
+                                          self.resized_height)
+                                             , Image.ANTIALIAS)
+        # blit the image centerd in x and y axes
+        self.bmp = self.ImageToBitmap(self.resizedimage)
+
+        self.imagedc = wx.MemoryDC()
+        self.imagedc.SelectObject(self.bmp)
+
+    def Draw(self, dc):
+        """Redraw the image"""
+        self.resize_image()
+        # blit the buffer on to the screen
+        w, h = self.frame.preview.composite.size
+        dc.Blit(self.xoffset, self.yoffset,
+                self.resized_width, self.resized_height, self.imagedc,
+                0, 0)
+        
         
 class ThumbnailCanvas(DisplayCanvas):
     """panel where the thumbnail image is displayed
@@ -331,7 +352,8 @@ class ThumbnailCanvas(DisplayCanvas):
 	"""
         DisplayCanvas.__init__(self, parent)
         self.frame = wx.GetTopLevelParent(self)
-    
+        self.pen = wx.Pen((255, 0, 0), 2, wx.SOLID)
+        
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
         image = self.frame.im.original_image
@@ -356,7 +378,54 @@ class ThumbnailCanvas(DisplayCanvas):
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
+        
+        x1, y1, x2, y2 = self.frame.im.zoomframe
+
+        print 'canvas size', self.GetSize()
+        print 'image size', self.frame.im.original_image.size
+        print 'drawing', x1, y1, x2, y2
+        dc.SetPen(self.pen)
+        dc.DrawLine(x1, y1, x2, y1)
+        dc.DrawLine(x2, y1, x2, y2)
+        dc.DrawLine(x2, y2, x1, y2)
+        dc.DrawLine(x1, y2, x1, y1)
+
         self.NEEDREDRAW = False 
+
+
+class Series_Preview():
+    """A composite image made of thumbnails from all playlist images.
+    Should be triggered by opening a new file"""
+    def __init__(self, imagelist):
+        # imagelist is list of filenames to load
+        self.filenames = imagelist
+
+        if len(self.filenames) == 0:
+            self.composite = Image.new('RGB', (800, 100), (255, 255, 255))
+        else:
+            self.tn_size = 100 # thumbnail size
+            self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size), (200, 200, 200))
+            self.composite = Image.new('RGB', (self.tn_size * len(self.filenames), self.tn_size),
+                              (255, 255, 255))
+        
+            self.build_composite()
+        
+    def build_composite(self):
+        self.im_list = []
+        for filename in self.filenames:
+            try:
+                self.im_list.append(Image.open(filename))
+            except:
+                self.im_list.append(self.blankimage)
+
+        self.thumbnails = [im.resize((self.tn_size,self.tn_size), Image.ANTIALIAS)
+                               for im in self.im_list]
+
+        for index in range(len(self.im_list)):
+            w,h = self.thumbnails[index].size
+            x1 = index * self.tn_size
+            x2 = x1 + w
+            self.composite.paste(self.thumbnails[index], (x1, 0, x2, h))
 
         
 class Im():
@@ -369,7 +438,8 @@ class Im():
         self.original_image = Image.new('RGB', (100,200), (255,255,255))
 
         self.frame = parent
-        
+
+        self.zoomframe = (0,0,0,0)
         self.ZOOMSTEP = 1.1
         self.SHIFTZOOMSTEP = 5
         
@@ -426,7 +496,7 @@ class Im():
         else:
             self.zoom_yoffset = min(self.zoom_yoffset, (self.height - newheight) / 2)
 
-        zoomframe = [int(value) for value in [self.zoom_xoffset, self.zoom_yoffset,
+        self.zoomframe = [int(value) for value in [self.zoom_xoffset, self.zoom_yoffset,
                      self.zoom_xoffset + newwidth, self.zoom_yoffset + newheight]]
         #
         if self.zoom_xoffset < 0:
@@ -434,9 +504,10 @@ class Im():
         if self.zoom_yoffset < 0:
             self.zoom_yoffset = 0
 
-        self.image = self.original_image.crop(zoomframe)
+        self.image = self.original_image.crop(self.zoomframe)
 
         self.frame.canvas.NEEDREDRAW = True
+        self.frame.thumbnailpanel.NEEDREDRAW = True
 
     def zoom_in(self, event):
         """zoom into the image"""
