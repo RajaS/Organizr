@@ -206,44 +206,39 @@ class MainFrame(wx.Frame):
         self.playlist.sort()
         self.nowshowing = self.playlist.index(self.filepath)
         #self.im.load()
-        
-class ImageCanvas(wx.Panel):
-    """panel where the images are displayed
-    """
+
+class DisplayCanvas(wx.Panel):
+    """A panel that can be subclassed and used for displaying images"""
     def __init__(self, parent):
-        """
-	"""
         wx.Panel.__init__(self, parent, -1)
-        self.frame = wx.GetTopLevelParent(self)
 
         self.NEEDREDRAW = False
-        #self.im = Im(self)
-        
-        self.zoom_ratio = 1
-        self.zoom_xoffset = None
-        self.zoom_yoffset = None
-        
         self.Bind(wx.EVT_SIZE, self.OnResize)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
         self.Bind(wx.EVT_PAINT, self.OnPaint) 
-        self.SetFocus() # to catch key events
-        
+
     def OnIdle(self, event):
         """Redraw if there is a change"""
         if self.NEEDREDRAW:
             dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
                                wx.BUFFER_CLIENT_AREA)
             dc.Clear()  #clear old image if still there        
-            self.resize_image()
+            #self.resize_image()
             self.Draw(dc)
             self.NEEDREDRAW = False
+
+    def ImageToBitmap(self, img):
+        newimage = apply(wx.EmptyImage, img.size)
+        newimage.SetData(img.convert( "RGB").tostring())
+        bmp = newimage.ConvertToBitmap()
+        return bmp
 
     def OnResize(self, event):
         """when canvas  is resized, we create a new buffer, which will
         be redrawn on next idle event"""
         # update / initialize height and width
         self.width, self.height = self.GetSize()
-
+        
         # update / create the buffer for the buffered dc
         image = wx.EmptyImage(self.width, self.height)
         wx.Image.Create(image,self.width, self.height, False)
@@ -254,13 +249,10 @@ class ImageCanvas(wx.Panel):
 
     def OnPaint(self, event):
         dc = wx.BufferedPaintDC(self, self.buffer)
-    
-    def resize_image(self):
-        """Process the image by resizing to best fit current size"""
-        image = self.frame.im.image
-        
+
+    def get_resize_params(self, imagewidth, imageheight):
+        """"calculate params for resizing image to canvas"""
         # What drives the scaling - height or width
-        imagewidth, imageheight = image.size
         if imagewidth / imageheight > self.width / self.height:
             self.scalingvalue = self.width / imagewidth
         else:
@@ -269,26 +261,61 @@ class ImageCanvas(wx.Panel):
         # resize with antialiasing
         self.resized_width =  int(imagewidth * self.scalingvalue)
         self.resized_height = int(imageheight * self.scalingvalue)
+        self.xoffset = (self.width-self.resized_width)/2
+        self.yoffset = (self.height-self.resized_height)/2
+
+        # self.resizedimage = image.resize((self.resized_width,
+        #                                   self.resized_height)
+        #                                      , Image.ANTIALIAS)
+
+        # # blit the image centerd in x and y axes
+        # self.bmp = self.ImageToBitmap(self.resizedimage)
+
+        # self.imagedc = wx.MemoryDC()
+        # self.imagedc.SelectObject(self.bmp)
+
+    def Draw(self, dc):
+        """Drawing routine.
+        Implement in subclass"""
+        pass
+        
+class ImageCanvas(DisplayCanvas):
+    """panel where the images are displayed
+    """
+    def __init__(self, parent):
+        """
+	"""
+        DisplayCanvas.__init__(self, parent)
+        self.frame = wx.GetTopLevelParent(self)
+
+        #self.xoffset = 0; self.yoffset = 0
+        #self.resized_width = 0; self.resized_height = 0
+        self.zoom_ratio = 1
+        self.zoom_xoffset = None
+        self.zoom_yoffset = None
+        
+        self.SetFocus() # to catch key events
+    
+    def resize_image(self):
+        """Process the image by resizing to best fit current size"""
+        image = self.frame.im.image
+        imagewidth, imageheight = image.size
+
+        self.get_resize_params(imagewidth, imageheight)
+        
         self.resizedimage = image.resize((self.resized_width,
                                           self.resized_height)
                                              , Image.ANTIALIAS)
-
         # blit the image centerd in x and y axes
         self.bmp = self.ImageToBitmap(self.resizedimage)
 
         self.imagedc = wx.MemoryDC()
         self.imagedc.SelectObject(self.bmp)
-        self.xoffset = (self.width-self.resized_width)/2
-        self.yoffset = (self.height-self.resized_height)/2
-
-    def ImageToBitmap(self, img):
-        newimage = apply(wx.EmptyImage, img.size)
-        newimage.SetData(img.convert( "RGB").tostring())
-        bmp = newimage.ConvertToBitmap()
-        return bmp
 
     def Draw(self, dc):
         """Redraw the image"""
+        print 'drawing'
+        self.resize_image()
         # blit the buffer on to the screen
         w, h = self.frame.im.image.size
         dc.Blit(self.xoffset, self.yoffset,
@@ -296,7 +323,43 @@ class ImageCanvas(wx.Panel):
                 0, 0)
         self.NEEDREDRAW = False 
 
- 
+        
+class ThumbnailCanvas(DisplayCanvas):
+    """panel where the thumbnail image is displayed
+    """
+    def __init__(self, parent):
+        """
+	"""
+        DisplayCanvas.__init__(self, parent)
+        self.frame = wx.GetTopLevelParent(self)
+    
+    def resize_image(self):
+        """Process the image by resizing to best fit current size"""
+        image = self.frame.im.image
+        imagewidth, imageheight = image.size
+
+        self.get_resize_params(imagewidth, imageheight)
+        
+        self.resizedimage = image.resize((self.resized_width,
+                                          self.resized_height)
+                                             , Image.ANTIALIAS)
+        # blit the image centerd in x and y axes
+        self.bmp = self.ImageToBitmap(self.resizedimage)
+
+        self.imagedc = wx.MemoryDC()
+        self.imagedc.SelectObject(self.bmp)
+
+    def Draw(self, dc):
+        """Redraw the image"""
+        self.resize_image()
+        # blit the buffer on to the screen
+        w, h = self.frame.im.image.size
+        dc.Blit(self.xoffset, self.yoffset,
+                self.resized_width, self.resized_height, self.imagedc,
+                0, 0)
+        self.NEEDREDRAW = False 
+
+        
 class Im():
     """the loaded image"""
     def __init__(self, parent):
@@ -331,6 +394,7 @@ class Im():
         self.zoom()
             
         self.frame.canvas.NEEDREDRAW = True
+        self.frame.thumbnailpanel.NEEDREDRAW = True
         self.frame.SetStatusText(os.path.basename(filepath))
 
     def load_multiple(self):
@@ -415,14 +479,6 @@ class Im():
         elif exif_orientation == 3:
             self.image = self.image.rotate(180)
      
-class ThumbnailCanvas(ImageCanvas):
-    """panel to draw the thumbnail of the image"""
-    def __init__(self, parent):
-        """imagefilename is filename of the single image
-        or the name of the first in series for a series of images"""
-        ImageCanvas.__init__(self, parent)
-        #self.im = Im(self)
-
         
 class ExifInfo():
     """exif information for an image"""
