@@ -275,8 +275,7 @@ class DisplayCanvas(wx.Panel):
         # self.imagedc.SelectObject(self.bmp)
 
     def Draw(self, dc):
-        """Drawing routine.
-        Implement in subclass"""
+        """Drawing routine.Implement in subclass"""
         pass
         
 class ImageCanvas(DisplayCanvas):
@@ -335,7 +334,7 @@ class ThumbnailCanvas(DisplayCanvas):
     
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
-        image = self.frame.im.image
+        image = self.frame.im.original_image
         imagewidth, imageheight = image.size
 
         self.get_resize_params(imagewidth, imageheight)
@@ -353,7 +352,7 @@ class ThumbnailCanvas(DisplayCanvas):
         """Redraw the image"""
         self.resize_image()
         # blit the buffer on to the screen
-        w, h = self.frame.im.image.size
+        w, h = self.frame.im.original_image.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
@@ -367,6 +366,8 @@ class Im():
         for single image this is a singleton list.
         Multiple items indicate this is a series to be loaded"""
         self.image = Image.new('RGB', (100,200), (255,255,255))
+        self.original_image = Image.new('RGB', (100,200), (255,255,255))
+
         self.frame = parent
         
         self.ZOOMSTEP = 1.1
