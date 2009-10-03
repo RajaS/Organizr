@@ -48,6 +48,8 @@ class MainFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, -1, "", style=wx.DEFAULT_FRAME_STYLE)
         self.Maximize()
+        # need to have this ready before imagecanvas and thumbnail canvas are initialized
+        self.im = Im(self) 
         
         self.splitter_1 = wx.SplitterWindow(self, -1, style=wx.SP_3D|wx.SP_BORDER)
         self.splitter_1_pane_2 = wx.Panel(self.splitter_1, -1)
@@ -119,8 +121,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.onopen, id=ID_OPEN)
         self.Bind(wx.EVT_MENU, self.onprev, id=ID_PREV)
         self.Bind(wx.EVT_MENU, self.onnext, id=ID_NEXT)
-        self.Bind(wx.EVT_MENU, self.canvas.im.zoom_in, id=ID_ZOOMIN)
-        self.Bind(wx.EVT_MENU, self.canvas.im.zoom_out, id=ID_ZOOMOUT)
+        self.Bind(wx.EVT_MENU, self.im.zoom_in, id=ID_ZOOMIN)
+        self.Bind(wx.EVT_MENU, self.im.zoom_out, id=ID_ZOOMOUT)
 
         self.canvas.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
         
@@ -162,7 +164,7 @@ class MainFrame(wx.Frame):
     def load_new(self):
         """common things to do when a new image is loaded"""
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
-        self.canvas.im.load()
+        self.im.load()
         #self.thumbnailpanel.im.load()
         self.exifpanel.Clear()
         self.exifpanel.WriteText(str(self.exifinfo))
@@ -178,13 +180,13 @@ class MainFrame(wx.Frame):
         elif keycode == 75: #'k'
             self.onnext(event)
         elif keycode == 46: # '>'
-            self.canvas.im.zoom_in(event)
+            self.im.zoom_in(event)
         elif keycode == 44: # '<'
-            self.canvas.im.zoom_out(event)
+            self.im.zoom_out(event)
         elif keycode == 61: #'='
-            self.canvas.im.no_zoom(event)
+            self.im.no_zoom(event)
         elif keycode in [314, 315, 316, 317]: #arrow keys
-            self.canvas.im.shift_zoom_frame(event)
+            self.im.shift_zoom_frame(event)
         else:
             pass        
         
@@ -203,7 +205,7 @@ class MainFrame(wx.Frame):
                 self.playlist.append(os.path.join(dirname,eachfile))
         self.playlist.sort()
         self.nowshowing = self.playlist.index(self.filepath)
-        #self.canvas.im.load()
+        #self.im.load()
         
 class ImageCanvas(wx.Panel):
     """panel where the images are displayed
@@ -215,7 +217,7 @@ class ImageCanvas(wx.Panel):
         self.frame = wx.GetTopLevelParent(self)
 
         self.NEEDREDRAW = False
-        self.im = Im(self)
+        #self.im = Im(self)
         
         self.zoom_ratio = 1
         self.zoom_xoffset = None
@@ -255,7 +257,7 @@ class ImageCanvas(wx.Panel):
     
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
-        image = self.im.image
+        image = self.frame.im.image
         
         # What drives the scaling - height or width
         imagewidth, imageheight = image.size
@@ -288,7 +290,7 @@ class ImageCanvas(wx.Panel):
     def Draw(self, dc):
         """Redraw the image"""
         # blit the buffer on to the screen
-        w, h = self.im.image.size
+        w, h = self.frame.im.image.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
@@ -302,24 +304,24 @@ class Im():
         for single image this is a singleton list.
         Multiple items indicate this is a series to be loaded"""
         self.image = Image.new('RGB', (100,200), (255,255,255))
-        self.canvas = parent
+        self.frame = parent
         
         self.ZOOMSTEP = 1.1
         self.SHIFTZOOMSTEP = 5
         
     def load(self):
         """load as a wx bitmap"""
-        filepath = self.canvas.frame.playlist[self.canvas.frame.nowshowing]
+        filepath = self.frame.playlist[self.frame.nowshowing]
         try:
             self.original_image = Image.open(filepath, 'r')
         except:
-            self.canvas.frame.SetStatusText('Could not load image')
+            self.frame.SetStatusText('Could not load image')
             return
 
         # depending on orientation info in exif, rotate the image
-        if self.canvas.frame.AUTOROTATE:
+        if self.frame.AUTOROTATE:
             try:
-                self.autorotate(self.canvas.frame.exifinfo.info["Orientation"])
+                self.autorotate(self.frame.exifinfo.info["Orientation"])
             except KeyError:
                 pass # no exif orientation info    
 
@@ -328,8 +330,8 @@ class Im():
         self.zoom_ratio = 1
         self.zoom()
             
-        self.canvas.NEEDREDRAW = True
-        self.canvas.frame.SetStatusText(os.path.basename(filepath))
+        self.frame.canvas.NEEDREDRAW = True
+        self.frame.SetStatusText(os.path.basename(filepath))
 
     def load_multiple(self):
         """Load a list of images and construct a composite image"""
@@ -359,8 +361,8 @@ class Im():
         else:
             self.zoom_yoffset = min(self.zoom_yoffset, (self.height - newheight) / 2)
 
-        zoomframe = [self.zoom_xoffset, self.zoom_yoffset,
-                     self.zoom_xoffset + newwidth, self.zoom_yoffset + newheight]
+        zoomframe = [int(value) for value in [self.zoom_xoffset, self.zoom_yoffset,
+                     self.zoom_xoffset + newwidth, self.zoom_yoffset + newheight]]
         #
         if self.zoom_xoffset < 0:
             self.zoom_xoffset = 0
@@ -369,7 +371,7 @@ class Im():
 
         self.image = self.original_image.crop(zoomframe)
 
-        self.canvas.NEEDREDRAW = True
+        self.frame.canvas.NEEDREDRAW = True
 
     def zoom_in(self, event):
         """zoom into the image"""
@@ -419,7 +421,7 @@ class ThumbnailCanvas(ImageCanvas):
         """imagefilename is filename of the single image
         or the name of the first in series for a series of images"""
         ImageCanvas.__init__(self, parent)
-        self.im = Im(self)
+        #self.im = Im(self)
 
         
 class ExifInfo():
@@ -456,6 +458,10 @@ class ExifInfo():
         """Extract the useful info only"""
         info = {}
         data = self.exifdata
+
+        if not data:
+            return info
+        
         for key in data.keys():
             for wanted_key in ['ExposureMode', 'DateTime',
                                'ExposureTime', 'FocalLength',
