@@ -17,6 +17,18 @@ ID_EXIT = wx.NewId(); ID_PREV = wx.NewId()
 ID_NEXT = wx.NewId(); ID_ZOOMIN = wx.NewId()
 ID_ZOOMOUT = wx.NewId()
 
+# utility functions
+def reduce_fraction(fraction_string):
+    """If the input string represents a fraction,
+    reduce it and return to one decimal place.
+    ex: input '71/10' gives 7.1
+    input '5' gives 5"""
+    try:
+        num, den = fraction_string.split('/')
+        reduced_string = '%0.1f' %(float(num) / float(den))
+    except:
+        reduced_string = '%s' %(fraction_string)
+    return reduced_string
 
 class Organizr(wx.App):
     """The core class
@@ -151,6 +163,7 @@ class MainFrame(wx.Frame):
         """common things to do when a new image is loaded"""
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
         self.canvas.im.load()
+        #self.thumbnailpanel.im.load()
         self.exifpanel.Clear()
         self.exifpanel.WriteText(str(self.exifinfo))
         
@@ -203,6 +216,7 @@ class ImageCanvas(wx.Panel):
 
         self.NEEDREDRAW = False
         self.im = Im(self)
+        
         self.zoom_ratio = 1
         self.zoom_xoffset = None
         self.zoom_yoffset = None
@@ -241,7 +255,6 @@ class ImageCanvas(wx.Panel):
     
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
-        print 'zoom and resize'
         image = self.im.image
         
         # What drives the scaling - height or width
@@ -258,7 +271,6 @@ class ImageCanvas(wx.Panel):
                                           self.resized_height)
                                              , Image.ANTIALIAS)
 
-        print 'new size', self.resizedimage.size
         # blit the image centerd in x and y axes
         self.bmp = self.ImageToBitmap(self.resizedimage)
 
@@ -276,13 +288,10 @@ class ImageCanvas(wx.Panel):
     def Draw(self, dc):
         """Redraw the image"""
         # blit the buffer on to the screen
-        print 'redrawing'
         w, h = self.im.image.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
-        # dc.Blit(self.xoffset, self.yoffset,
-        #         self.resized_width/2, self.resized_height/2, self.imagedc, 0, 0)
         self.NEEDREDRAW = False 
 
  
@@ -294,7 +303,7 @@ class Im():
         Multiple items indicate this is a series to be loaded"""
         self.image = Image.new('RGB', (100,200), (255,255,255))
         self.canvas = parent
-
+        
         self.ZOOMSTEP = 1.1
         self.SHIFTZOOMSTEP = 5
         
@@ -309,7 +318,10 @@ class Im():
 
         # depending on orientation info in exif, rotate the image
         if self.canvas.frame.AUTOROTATE:
-            self.autorotate(self.canvas.frame.exifinfo.info["Orientation"])
+            try:
+                self.autorotate(self.canvas.frame.exifinfo.info["Orientation"])
+            except KeyError:
+                pass # no exif orientation info    
 
         self.width, self.height = self.original_image.size
         self.zoom_xoffset = None; self.zoom_yoffset = None
@@ -354,8 +366,9 @@ class Im():
             self.zoom_xoffset = 0
         if self.zoom_yoffset < 0:
             self.zoom_yoffset = 0
-        
+
         self.image = self.original_image.crop(zoomframe)
+
         self.canvas.NEEDREDRAW = True
 
     def zoom_in(self, event):
@@ -406,7 +419,7 @@ class ThumbnailCanvas(ImageCanvas):
         """imagefilename is filename of the single image
         or the name of the first in series for a series of images"""
         ImageCanvas.__init__(self, parent)
-        self.im = Im(self, THUMBNAIL=True)
+        self.im = Im(self)
 
         
 class ExifInfo():
@@ -428,16 +441,16 @@ class ExifInfo():
             
     def __repr__(self):
         """formatted string of exif info"""
-        return '\n'.join(['Model : %s' %(self.info['Model']),
-                          'Time : %s' %(self.info['DateTime']),
-                          'Mode : %s' %(self.info['ExposureMode']),
-                          'ISO : %s' %(self.info['ISOSpeed']),
-                          'Aperture : %s' %(self.info['FNumber']),
-                          'Shutter time : %s' %(self.info['ExposureTime']),
-                          'Focal length : %s' %(self.info['FocalLength']),
-                          'Flash : %s' %(self.info['FlashMode']),
-                          'Lens : %s - %s' %(self.info['ShortFocalLengthOfLens'],
-                                             self.info['LongFocalLengthOfLens'])]) 
+        return '\n'.join(['Model : %s' %(self.info.get('Model', 'NA')),
+                          'Time : %s' %(self.info.get('DateTime', 'NA')),
+                          'Mode : %s' %(self.info.get('ExposureMode', 'NA')),
+                          'ISO : %s' %(self.info.get('ISOSpeed', 'NA')),
+                          'Aperture : %s' %(reduce_fraction(self.info.get('FNumber', 'NA'))),
+                          'Shutter time : %s' %(self.info.get('ExposureTime', 'NA')),
+                          'Focal length : %s' %(self.info.get('FocalLength', 'NA')),
+                          'Flash : %s' %(self.info.get('FlashMode', 'NA')),
+                          'Lens : %s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
+                                             self.info.get('LongFocalLengthOfLens', 'NA'))]) 
             
     def process_exif_info(self):
         """Extract the useful info only"""
