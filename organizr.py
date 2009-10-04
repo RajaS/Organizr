@@ -418,8 +418,9 @@ class Series_Preview():
             except:
                 self.im_list.append(self.blankimage)
 
-        self.thumbnails = [im.resize((self.tn_size,self.tn_size), Image.ANTIALIAS)
-                               for im in self.im_list]
+        self.thumbnails = self.im_list
+        for im in self.im_list:
+            im.thumbnail((self.tn_size, self.tn_size), Image.ANTIALIAS)
 
         for index in range(len(self.im_list)):
             w,h = self.thumbnails[index].size
