@@ -171,7 +171,7 @@ class MainFrame(wx.Frame):
         print 'entering load_new', time.time()
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
         print 'got exif info', time.time()
-        #self.preview  = Series_Preview(self, self.playlist[self.nowshowing-1:self.nowshowing+2])
+        self.preview  = Series_Preview(self, self.playlist[self.nowshowing-1:self.nowshowing+2])
         print 'created preview', time.time()
         self.playlistcanvas.NEEDREDRAW = True
         print 'playlistcanvas redraw flagged, start im load', time.time()
@@ -449,13 +449,45 @@ class Series_Preview():
                                                self.tn_size + 10), (255, 255, 255))
             print 'made base for composite', time.time()
         
-            self.build_composite()
+            self.build_composite2()
         
     def build_composite(self):
         self.im_list = []
         for filename in self.filenames:
             try:
                 self.im_list.append(self.frame.cache.get_im(filename)) #Image.open(filename))
+            except:
+                self.im_list.append(self.blankimage)
+
+        print 'constructed im list', time.time()
+
+        self.thumbnails = self.im_list
+        for im in self.im_list:
+            im.thumbnail((self.tn_size, self.tn_size)) #, Image.ANTIALIAS)
+
+        print 'created thumbnails', time.time()
+
+        for index in range(len(self.im_list)):
+            w,h = self.thumbnails[index].size
+            x1 = 5 + index * (self.tn_size + 10)
+            xoffset = (self.tn_size - w) / 2
+            yoffset = (self.tn_size - h) / 2
+            self.composite.paste(self.thumbnails[index], (x1 + xoffset, 5 + yoffset)) 
+
+        print 'pasted thumbnails', time.time()
+        print '---------------'
+
+
+    def build_composite2(self):
+        import md5
+        self.im_list = []
+        for filename in self.filenames:
+            try:
+                uri = 'file://' + filename
+                hash = md5.new(uri).hexdigest()
+                tb_filename = os.path.join('/home/raja/.thumbnails/normal',
+                                           hash, '.png')
+                self.im_list.append(Image.load(tb_filename))
             except:
                 self.im_list.append(self.blankimage)
 
@@ -516,7 +548,7 @@ class Im():
             except KeyError:
                 pass # no exif orientation info    
             
-        print 'rotated',self.frame.exifinfo.info["Orientation"], time.time()
+        print 'rotated', time.time()
 
         self.width, self.height = self.original_image.size
         self.zoom_xoffset = None; self.zoom_yoffset = None
