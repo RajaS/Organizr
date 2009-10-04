@@ -11,6 +11,13 @@ import time
 
 import Exifreader
 
+# ####
+# current plans
+
+#  - test if using thumbnail is better than my custom resize
+# ###
+
+
 
 ID_OPEN = wx.NewId(); ID_SAVE = wx.NewId()
 ID_EXIT = wx.NewId(); ID_PREV = wx.NewId()
@@ -231,11 +238,14 @@ class DisplayCanvas(wx.Panel):
     def OnIdle(self, event):
         """Redraw if there is a change"""
         if self.NEEDREDRAW:
+            print 'redraw caught', time.time()
+            print self.__class__.__name__
             dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
                                wx.BUFFER_CLIENT_AREA)
             dc.Clear()  #clear old image if still there        
             self.Draw(dc)
             self.NEEDREDRAW = False
+            print 'drawn', time.time()
 
     def ImageToBitmap(self, img):
         newimage = apply(wx.EmptyImage, img.size)
@@ -295,14 +305,20 @@ class ImageCanvas(DisplayCanvas):
     
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
-        image = self.frame.im.image
-        imagewidth, imageheight = image.size
+        #image = self.frame.im.image
+        #imagewidth, imageheight = image.size
 
-        self.get_resize_params(imagewidth, imageheight)
+        # self.get_resize_params(imagewidth, imageheight)
         
-        self.resizedimage = image.resize((self.resized_width,
-                                          self.resized_height)
-                                             , Image.ANTIALIAS)
+        # self.resizedimage = image.resize((self.resized_width,
+        #                                   self.resized_height)
+        #                                      , Image.ANTIALIAS)
+        self.resizedimage = self.frame.im.image
+        self.resizedimage.thumbnail((self.width, self.height), Image.ANTIALIAS)
+        self.resized_width, self.resized_height = self.resizedimage.size
+        self.xoffset = (self.width-self.resized_width)/2
+        self.yoffset = (self.height-self.resized_height)/2
+        
         # blit the image centerd in x and y axes
         self.bmp = self.ImageToBitmap(self.resizedimage)
 
@@ -311,13 +327,16 @@ class ImageCanvas(DisplayCanvas):
 
     def Draw(self, dc):
         """Redraw the image"""
+        print 'started draw', time.time()
         self.resize_image()
+        print 'resized', time.time()
         # blit the buffer on to the screen
         w, h = self.frame.im.image.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
-        self.NEEDREDRAW = False 
+        self.NEEDREDRAW = False
+        print 'drawn', time.time()
 
 
 class Cache(list):
