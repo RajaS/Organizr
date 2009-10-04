@@ -81,7 +81,7 @@ class MainFrame(wx.Frame):
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
         self.sizer_1.Add(self.playlistcanvas, 1, wx.ALL|wx.EXPAND, 20)
-        self.sizer_1.Add(self.sizer_1_pane_2, 4, wx.ALL|wx.EXPAND, 4)
+        self.sizer_1.Add(self.sizer_1_pane_2, 5, wx.ALL|wx.EXPAND, 4)
 
         sizer_2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_3 = wx.BoxSizer(wx.HORIZONTAL)
@@ -253,7 +253,7 @@ class DisplayCanvas(wx.Panel):
         dc = wx.BufferedPaintDC(self, self.buffer)
 
     def get_resize_params(self, imagewidth, imageheight):
-        """"calculate params for resizing image to canvas"""
+        """calculate params for resizing image to canvas"""
         # What drives the scaling - height or width
         if imagewidth / imageheight > self.width / self.height:
             self.scalingvalue = self.width / imagewidth
@@ -303,7 +303,6 @@ class ImageCanvas(DisplayCanvas):
 
     def Draw(self, dc):
         """Redraw the image"""
-        print 'drawing'
         self.resize_image()
         # blit the buffer on to the screen
         w, h = self.frame.im.image.size
@@ -382,9 +381,6 @@ class ThumbnailCanvas(DisplayCanvas):
         
         x1, y1, x2, y2 = self.frame.im.zoomframe
 
-        print 'canvas size', self.GetSize()
-        print 'image size', self.frame.im.original_image.size
-        print 'drawing', x1, y1, x2, y2
         dc.SetPen(self.pen)
         dc.DrawLine(x1, y1, x2, y1)
         dc.DrawLine(x2, y1, x2, y2)
@@ -406,8 +402,8 @@ class Series_Preview():
         else:
             self.tn_size = 100 # thumbnail size
             self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size), (200, 200, 200))
-            self.composite = Image.new('RGB', (self.tn_size * len(self.filenames), self.tn_size),
-                              (255, 255, 255))
+            self.composite = Image.new('RGB', ((self.tn_size + 10) * len(self.filenames),
+                                               self.tn_size + 10), (255, 255, 255))
         
             self.build_composite()
         
@@ -425,9 +421,10 @@ class Series_Preview():
 
         for index in range(len(self.im_list)):
             w,h = self.thumbnails[index].size
-            x1 = index * self.tn_size
-            x2 = x1 + w
-            self.composite.paste(self.thumbnails[index], (x1, 0, x2, h))
+            x1 = 5 + index * (self.tn_size + 10)
+            xoffset = (self.tn_size - w) / 2
+            yoffset = (self.tn_size - h) / 2
+            self.composite.paste(self.thumbnails[index], (x1 + xoffset, 5 + yoffset)) 
 
         
 class Im():
