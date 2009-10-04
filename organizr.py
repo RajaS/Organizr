@@ -7,7 +7,7 @@ from __future__ import division
 import os
 import wx
 import Image
-import copy
+import time
 
 import Exifreader
 
@@ -64,7 +64,8 @@ class MainFrame(wx.Frame):
         self.thumbnailpanel = ThumbnailCanvas(self.splitter_3)
         
         self.statusbar = self.CreateStatusBar(2, 0)
-
+        self.cache = Cache()
+        
         self.__set_properties()
         self.__do_layout()
         self.__build_menubar()
@@ -130,7 +131,7 @@ class MainFrame(wx.Frame):
         
     def onopen(self, event):
         """Open a new file"""
-        filter = 'Image files|*.png;*.tif;*.tiff;*.jpg;*.jpeg;*.bmp|All files|*.*'
+        filter = 'Image files|*.png;*.tif;*.tiff;*.TIF;*.jpg;*.jpeg;*.JPG;*.bmp|All files|*.*'
         dlg = wx.FileDialog(self,defaultDir = self.current_dir,
                             style=wx.OPEN, wildcard=filter)
         if dlg.ShowModal() == wx.ID_OK:
@@ -206,7 +207,7 @@ class MainFrame(wx.Frame):
                 self.playlist.append(os.path.join(dirname,eachfile))
         self.playlist.sort()
         self.nowshowing = self.playlist.index(self.filepath)
-        self.preview  = Series_Preview(self.playlist)
+        self.preview  = Series_Preview(self.playlist[self.nowshowing-3:self.nowshowing+3])
         self.playlistcanvas.NEEDREDRAW = True
 
 
@@ -312,6 +313,36 @@ class ImageCanvas(DisplayCanvas):
         self.NEEDREDRAW = False 
 
 
+class Cache(list):
+    """Implement a simple cache to store loaded images.
+    Basically a list of tuples. Each tuple links filename to loaded image.
+    Older entries are popped to limit cache size"""
+    def __init__(self, maxsize=7):
+        self.maxsize = maxsize
+
+    def add(self, obj):
+        """add a new object (tuple) to the cache"""
+        self.append(obj)
+        if len(self) > self.maxsize:
+            print 'popping cache'
+            self.pop()
+
+    def get_im(self, filename):
+        """return loaded image for the filename.
+        If not in cache load it"""
+        filenames = [pair[0] for pair in self]
+        loaded_ims = [pair[1] for pair in self]
+        
+        try:
+            print 'try to use cache'
+            return loaded_ims[filenames.index(filename)]
+        except ValueError:
+            print 'load fresh'
+            im = Image.open(filename)
+            self.add((filename, im))
+            return im
+
+        
 class PlayListCanvas(DisplayCanvas):
     """Display list of images """
     def __init__(self, parent):
@@ -444,13 +475,17 @@ class Im():
         
     def load(self):
         """load as a wx bitmap"""
+        self.frame.SetStatusText('Loading')
+        stime = time.time()
         filepath = self.frame.playlist[self.frame.nowshowing]
         try:
-            self.original_image = Image.open(filepath, 'r')
+            self.original_image = self.frame.cache.get_im(filepath)
+            #self.original_image = Image.open(filepath, 'r')
         except:
             self.frame.SetStatusText('Could not load image')
             return
 
+        self.frame.SetStatusText('Loaded in %s seconds' %(time.time() - stime), 1)
         # depending on orientation info in exif, rotate the image
         if self.frame.AUTOROTATE:
             try:
