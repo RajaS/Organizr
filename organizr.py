@@ -52,11 +52,10 @@ class MainFrame(wx.Frame):
         self.im = Im(self) 
         self.preview = Series_Preview([])
         
-        self.splitter_1 = wx.SplitterWindow(self, -1, style=wx.SP_3D|wx.SP_BORDER)
-        self.splitter_1_pane_2 = wx.Panel(self.splitter_1, -1)
-        self.playlistcanvas = PlayListCanvas(self.splitter_1) #style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
-
-        self.splitter_2 = wx.SplitterWindow(self.splitter_1_pane_2, -1, style=wx.SP_3D|wx.SP_BORDER)
+        self.sizer_1_pane_2 = wx.Panel(self, -1)
+        self.playlistcanvas = PlayListCanvas(self) #style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
+        
+        self.splitter_2 = wx.SplitterWindow(self.sizer_1_pane_2, -1, style=wx.SP_3D|wx.SP_BORDER)
         self.canvas = ImageCanvas(self.splitter_2 )#, -1, style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
         self.splitter_2_pane_2 = wx.Panel(self.splitter_2, -1)
 
@@ -80,7 +79,10 @@ class MainFrame(wx.Frame):
         self.AUTOROTATE = True # automatically rotate images
 
     def __do_layout(self):
-        sizer_1 = wx.BoxSizer(wx.VERTICAL)
+        self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
+        self.sizer_1.Add(self.playlistcanvas, 1, wx.ALL|wx.EXPAND, 20)
+        self.sizer_1.Add(self.sizer_1_pane_2, 4, wx.ALL|wx.EXPAND, 4)
+
         sizer_2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_3 = wx.BoxSizer(wx.HORIZONTAL)
         self.splitter_3.SplitHorizontally(self.exifpanel, self.thumbnailpanel, 453)
@@ -88,10 +90,9 @@ class MainFrame(wx.Frame):
         self.splitter_2_pane_2.SetSizer(sizer_3)
         self.splitter_2.SplitVertically(self.canvas, self.splitter_2_pane_2, 700)
         sizer_2.Add(self.splitter_2, 1, wx.EXPAND, 0)
-        self.splitter_1_pane_2.SetSizer(sizer_2)
-        self.splitter_1.SplitHorizontally(self.playlistcanvas, self.splitter_1_pane_2, 110)
-        sizer_1.Add(self.splitter_1, 1, wx.ALL|wx.EXPAND, 5)
-        self.SetSizer(sizer_1)
+        self.sizer_1_pane_2.SetSizer(sizer_2)
+        self.SetSizer(self.sizer_1)
+
         self.Layout()
         # have to set sash position again for splitter 3
         self.splitter_3.SetSashPosition(450)
@@ -211,8 +212,8 @@ class MainFrame(wx.Frame):
 
 class DisplayCanvas(wx.Panel):
     """A panel that can be subclassed and used for displaying images"""
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent, -1)
+    def __init__(self, parent, **kwargs):
+        wx.Panel.__init__(self, parent, -1, **kwargs)
 
         self.NEEDREDRAW = False
         self.Bind(wx.EVT_SIZE, self.OnResize)
@@ -315,7 +316,7 @@ class ImageCanvas(DisplayCanvas):
 class PlayListCanvas(DisplayCanvas):
     """Display list of images """
     def __init__(self, parent):
-        DisplayCanvas.__init__(self, parent)
+        DisplayCanvas.__init__(self, parent, style=wx.RAISED_BORDER)
         self.frame = wx.GetTopLevelParent(self)
         
     def resize_image(self):
