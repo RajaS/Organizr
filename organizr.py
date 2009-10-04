@@ -50,7 +50,7 @@ class MainFrame(wx.Frame):
         self.Maximize()
         # need to have this ready before imagecanvas and thumbnail canvas are initialized
         self.im = Im(self) 
-        self.preview = Series_Preview([])
+        self.preview = Series_Preview(self, [])
         
         self.sizer_1_pane_2 = wx.Panel(self, -1)
         self.playlistcanvas = PlayListCanvas(self) #style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
@@ -137,6 +137,7 @@ class MainFrame(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             self.filepath = dlg.GetPath()
             self.current_dir = os.path.dirname(self.filepath)
+            print 'filepath obtained', time.time()
             self.create_playlist()
             self.load_new()
         else:
@@ -151,6 +152,7 @@ class MainFrame(wx.Frame):
                 self.nowshowing = 0
             else:
                 self.nowshowing -= 1
+                
         self.load_new()
         
     def onprev(self, event):
@@ -166,10 +168,18 @@ class MainFrame(wx.Frame):
                 
     def load_new(self):
         """common things to do when a new image is loaded"""
+        print 'entering load_new', time.time()
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
+        print 'got exif info', time.time()
+        #self.preview  = Series_Preview(self, self.playlist[self.nowshowing-1:self.nowshowing+2])
+        print 'created preview', time.time()
+        self.playlistcanvas.NEEDREDRAW = True
+        print 'playlistcanvas redraw flagged, start im load', time.time()
         self.im.load()
+        print 'im loaded', time.time()
         self.exifpanel.Clear()
         self.exifpanel.WriteText(str(self.exifinfo))
+        print 'exif written', time.time()
         
     def on_key_down(self, event):
         """process key presses"""
@@ -207,9 +217,6 @@ class MainFrame(wx.Frame):
                 self.playlist.append(os.path.join(dirname,eachfile))
         self.playlist.sort()
         self.nowshowing = self.playlist.index(self.filepath)
-        self.preview  = Series_Preview(self.playlist[self.nowshowing-3:self.nowshowing+3])
-        self.playlistcanvas.NEEDREDRAW = True
-
 
 class DisplayCanvas(wx.Panel):
     """A panel that can be subclassed and used for displaying images"""
@@ -317,7 +324,7 @@ class Cache(list):
     """Implement a simple cache to store loaded images.
     Basically a list of tuples. Each tuple links filename to loaded image.
     Older entries are popped to limit cache size"""
-    def __init__(self, maxsize=7):
+    def __init__(self, maxsize=3):
         self.maxsize = maxsize
 
     def add(self, obj):
@@ -330,18 +337,19 @@ class Cache(list):
     def get_im(self, filename):
         """return loaded image for the filename.
         If not in cache load it"""
-        filenames = [pair[0] for pair in self]
-        loaded_ims = [pair[1] for pair in self]
+        # filenames = [pair[0] for pair in self]
+        # loaded_ims = [pair[1] for pair in self]
         
-        try:
-            print 'try to use cache'
-            return loaded_ims[filenames.index(filename)]
-        except ValueError:
-            print 'load fresh'
-            im = Image.open(filename)
-            self.add((filename, im))
-            return im
+        # try:
+        #     return loaded_ims[filenames.index(filename)].copy()
+        # except ValueError:
+        #     print 'load fresh'
+        #     im = Image.open(filename)
+        #     self.add((filename, im))
+        #     return im.copy()
 
+        ## cache-ing seemed to create problems
+        return Image.open(filename)
         
 class PlayListCanvas(DisplayCanvas):
     """Display list of images """
@@ -424,17 +432,22 @@ class ThumbnailCanvas(DisplayCanvas):
 class Series_Preview():
     """A composite image made of thumbnails from all playlist images.
     Should be triggered by opening a new file"""
-    def __init__(self, imagelist):
+    def __init__(self, parent, imagelist):
         # imagelist is list of filenames to load
         self.filenames = imagelist
-
+        self.frame = parent
+        
         if len(self.filenames) == 0:
             self.composite = Image.new('RGB', (800, 100), (255, 255, 255))
         else:
+            print '-----'
+            print 'start building composite', time.time()
             self.tn_size = 100 # thumbnail size
             self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size), (200, 200, 200))
+            print 'made blank image', time.time()
             self.composite = Image.new('RGB', ((self.tn_size + 10) * len(self.filenames),
                                                self.tn_size + 10), (255, 255, 255))
+            print 'made base for composite', time.time()
         
             self.build_composite()
         
@@ -442,13 +455,17 @@ class Series_Preview():
         self.im_list = []
         for filename in self.filenames:
             try:
-                self.im_list.append(Image.open(filename))
+                self.im_list.append(self.frame.cache.get_im(filename)) #Image.open(filename))
             except:
                 self.im_list.append(self.blankimage)
 
+        print 'constructed im list', time.time()
+
         self.thumbnails = self.im_list
         for im in self.im_list:
-            im.thumbnail((self.tn_size, self.tn_size), Image.ANTIALIAS)
+            im.thumbnail((self.tn_size, self.tn_size)) #, Image.ANTIALIAS)
+
+        print 'created thumbnails', time.time()
 
         for index in range(len(self.im_list)):
             w,h = self.thumbnails[index].size
@@ -457,6 +474,8 @@ class Series_Preview():
             yoffset = (self.tn_size - h) / 2
             self.composite.paste(self.thumbnails[index], (x1 + xoffset, 5 + yoffset)) 
 
+        print 'pasted thumbnails', time.time()
+        print '---------------'
         
 class Im():
     """the loaded image"""
@@ -475,6 +494,7 @@ class Im():
         
     def load(self):
         """load as a wx bitmap"""
+        print 'loading new image'
         self.frame.SetStatusText('Loading')
         stime = time.time()
         filepath = self.frame.playlist[self.frame.nowshowing]
@@ -487,17 +507,25 @@ class Im():
 
         self.frame.SetStatusText('Loaded in %s seconds' %(time.time() - stime), 1)
         # depending on orientation info in exif, rotate the image
+
+        print 'actual loading done', time.time()
+        
         if self.frame.AUTOROTATE:
             try:
                 self.autorotate(self.frame.exifinfo.info["Orientation"])
             except KeyError:
                 pass # no exif orientation info    
+            
+        print 'rotated',self.frame.exifinfo.info["Orientation"], time.time()
 
         self.width, self.height = self.original_image.size
         self.zoom_xoffset = None; self.zoom_yoffset = None
         self.zoom_ratio = 1
-        self.zoom()
-            
+        #self.zoom()
+        self.image = self.original_image
+        
+        print 'zoomed', time.time()
+        
         self.frame.canvas.NEEDREDRAW = True
         self.frame.thumbnailpanel.NEEDREDRAW = True
         self.frame.SetStatusText(os.path.basename(filepath))
@@ -642,5 +670,29 @@ def main():
     organizr = Organizr()
     organizr.MainLoop()
 
+
+def resizetest():
+    import glob
+    filter = '/data/pics/Aug2009/*.jpg'
+    jpgfiles = glob.glob(filter)
+    num = len(jpgfiles)
+
+    for file in jpgfiles:
+        stime = time.time()
+        print 'starting resize'
+        im = Image.open(file)
+        dummy = im.resize((100, 100))
+    print 'total time ', time.time() - stime
+    
+    for file in jpgfiles:
+        stime = time.time()
+        print 'starting thumbnail'
+        im = Image.open(file)
+        im.thumbnail((100, 100), Image.ANTIALIAS)
+    print 'total time ', time.time() - stime
+    
+
 if __name__ == '__main__':
     main()
+    #cachetest()
+    #resizetest()
