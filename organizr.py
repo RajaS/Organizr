@@ -7,6 +7,7 @@ from __future__ import division
 import os
 import wx
 import Image
+import ImageDraw
 import time
 import md5
 import sys
@@ -458,45 +459,29 @@ class Series_Preview():
             self.composite = Image.new('RGB', (800, 100), (255, 255, 255))
         else:
             self.tn_size = 100 # thumbnail size
-            self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size), (200, 200, 200))
+            self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size),
+                                        (200, 200, 200))
             self.composite = Image.new('RGB', ((self.tn_size + 10) * len(self.filenames),
                                                self.tn_size + 10), (255, 255, 255))
-        
-            self.build_composite2()
-        
+            self.build_composite()
+
     def build_composite(self):
+        """Build a composite image with thumbnails of the images."""
         self.im_list = []
         for filename in self.filenames:
-            try:
-                self.im_list.append(Image.open(filename))
-            except:
-                self.im_list.append(self.blankimage)
-
-        self.thumbnails = self.im_list
-        for im in self.im_list:
-            im.thumbnail((self.tn_size, self.tn_size)) #, Image.ANTIALIAS)
-
-        for index in range(len(self.im_list)):
-            w,h = self.thumbnails[index].size
-            x1 = 5 + index * (self.tn_size + 10)
-            xoffset = (self.tn_size - w) / 2
-            yoffset = (self.tn_size - h) / 2
-            self.composite.paste(self.thumbnails[index], (x1 + xoffset, 5 + yoffset)) 
-
-
-    def build_composite2(self):
-        self.im_list = []
-        for filename in self.filenames:
+            # get thumbnail from nautilus store
             tb_file = get_thumbnailfile(filename)
             if tb_file:
                 self.im_list.append(Image.open(tb_file))
             else:
                 self.im_list.append(self.blankimage)
 
+        # resize
         self.thumbnails = self.im_list
         for im in self.im_list:
             im.thumbnail((self.tn_size, self.tn_size)) #, Image.ANTIALIAS)
 
+        # paste the thumbnails
         for index in range(len(self.im_list)):
             w,h = self.thumbnails[index].size
             x1 = 5 + index * (self.tn_size + 10)
@@ -504,6 +489,13 @@ class Series_Preview():
             yoffset = (self.tn_size - h) / 2
             self.composite.paste(self.thumbnails[index], (x1 + xoffset, 5 + yoffset)) 
 
+        # draw box highlighting current image
+        center = int(len(self.im_list) / 2)
+        draw = ImageDraw.Draw(self.composite)
+        x1 = center * (self.tn_size + 10)
+        x2 = x1 + 105
+        draw.line((x1, 0, x2, 0, x2, 100, x1, 100, x1, 0),
+                  width=5, fill=(255,0,0))
         
 class Im():
     """the loaded image"""
