@@ -43,8 +43,7 @@ def get_thumbnailfile(filename):
         return None
 
 class Organizr(wx.App):
-    """The core class
-    """
+    """The core class"""
     def __init__(self):
         """initialize the app"""
         wx.App.__init__(self, 0)
@@ -65,6 +64,7 @@ class MainFrame(wx.Frame):
         # need to have this ready before imagecanvas and thumbnail canvas are initialized
         self.im = Im(self) 
         self.preview = Series_Preview(self, [])
+        self.tb_file = None # filename for thumbnail
         
         self.bottompanel = wx.Panel(self, -1)
         self.playlistcanvas = PlayListCanvas(self) 
@@ -81,19 +81,17 @@ class MainFrame(wx.Frame):
         self.thumbnailpanel = ThumbnailCanvas(self.horizontal_splitter)
         
         self.statusbar = self.CreateStatusBar(2, 0)
-        self.cache = Cache()
-        self.tb_file = None
-        
+
         self.__set_properties()
         self.__do_layout()
         self.__build_menubar()
         self.__set_bindings()
+        wx.FutureCall(500, self.__set_sash_positions())
         
     def __set_properties(self):
         self.SetTitle("Organizr")
-
         #variables and flags
-        self.current_dir = os.path.expanduser('~')
+        self.CURRENT_DIR = os.path.expanduser('~')
         self.WRAPON = True # wrap around in playlist
         self.AUTOROTATE = True # automatically rotate images
 
@@ -113,17 +111,23 @@ class MainFrame(wx.Frame):
         self.SetSizer(self.sizer_1)
 
         self.Layout()
-        # have to set sash position again for splitter 3
-        self.horizontal_splitter.SetSashPosition(450)
+
+    def __set_sash_positions(self):
+        """wait for frame size to be set and then set sash
+        positions properly"""
+        # not able to set sash size as per frame width and height
+        #self.horizontal_splitter.SetSashPosition(w - int(w/5))
+        #self.vertical_splitter.SetSashPosition(h - int(w/5))
+        self.horizontal_splitter.SetSashPosition(550)
         
     def __build_menubar(self):
         """All the menu bar items go here"""
         menubar = wx.MenuBar()
 
         file_menu = wx.Menu()
-        file_menu.Append(ID_OPEN, "&Open\tCtrl-O","Open file")
-        file_menu.Append(ID_SAVE, "&Save\tCtrl-S","Save Image")
-        file_menu.Append(ID_EXIT, "&Exit\tCtrl-Q","Exit")
+        file_menu.Append(ID_OPEN, "&Open","Open file")
+        file_menu.Append(ID_SAVE, "&Save","Save Image")
+        file_menu.Append(ID_EXIT, "&Exit","Exit")
 
         edit_menu = wx.Menu()
         edit_menu.Append(ID_PREV, "&Prev", "Previous Image")
@@ -149,12 +153,17 @@ class MainFrame(wx.Frame):
         
     def onopen(self, event):
         """Open a new file"""
-        filter = 'Image files|*.png;*.tif;*.tiff;*.TIF;*.jpg;*.jpeg;*.JPG;*.bmp|All files|*.*'
-        dlg = wx.FileDialog(self,defaultDir = self.current_dir,
+        filter = ''.join(['Image files|',
+                          '*.png;*.PNG;',
+                          '*.tif;*.tiff;*.TIF;*.TIFF',
+                          '*.bmp;*.BMP',
+                          '|All files|*.*'])
+
+        dlg = wx.FileDialog(self,defaultDir = self.CURRENT_DIR,
                             style=wx.OPEN, wildcard=filter)
         if dlg.ShowModal() == wx.ID_OK:
             self.filepath = dlg.GetPath()
-            self.current_dir = os.path.dirname(self.filepath)
+            self.CURRENT_DIR = os.path.dirname(self.filepath)
             self.create_playlist()
             self.load_new()
         else:
@@ -187,7 +196,7 @@ class MainFrame(wx.Frame):
         """common things to do when a new image is loaded"""
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
         self.preview  = Series_Preview(self, self.playlist[
-                        self.nowshowing-2:self.nowshowing+3])
+                        self.nowshowing-3:self.nowshowing+4])
         self.playlistcanvas.NEEDREDRAW = True
         self.tb_file = get_thumbnailfile(self.playlist[self.nowshowing])
         self.im.load()
@@ -251,14 +260,11 @@ class DisplayCanvas(wx.Panel):
     def OnIdle(self, event):
         """Redraw if there is a change"""
         if self.NEEDREDRAW:
-            print 'redraw caught', time.time()
-            print self.__class__.__name__
             dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
                                wx.BUFFER_CLIENT_AREA)
             dc.Clear()  #clear old image if still there        
             self.Draw(dc)
             self.NEEDREDRAW = False
-            print 'drawn', time.time()
 
     def ImageToBitmap(self, img):
         newimage = apply(wx.EmptyImage, img.size)
@@ -339,39 +345,7 @@ class ImageCanvas(DisplayCanvas):
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
         self.NEEDREDRAW = False
-        print 'drawn', time.time()
 
-
-class Cache(list):
-    """Implement a simple cache to store loaded images.
-    Basically a list of tuples. Each tuple links filename to loaded image.
-    Older entries are popped to limit cache size"""
-    def __init__(self, maxsize=3):
-        self.maxsize = maxsize
-
-    def add(self, obj):
-        """add a new object (tuple) to the cache"""
-        self.append(obj)
-        if len(self) > self.maxsize:
-            print 'popping cache'
-            self.pop()
-
-    def get_im(self, filename):
-        """return loaded image for the filename.
-        If not in cache load it"""
-        # filenames = [pair[0] for pair in self]
-        # loaded_ims = [pair[1] for pair in self]
-        
-        # try:
-        #     return loaded_ims[filenames.index(filename)].copy()
-        # except ValueError:
-        #     print 'load fresh'
-        #     im = Image.open(filename)
-        #     self.add((filename, im))
-        #     return im.copy()
-
-        ## cache-ing seemed to create problems
-        return Image.open(filename)
         
 class PlayListCanvas(DisplayCanvas):
     """Display list of images """
@@ -420,10 +394,8 @@ class ThumbnailCanvas(DisplayCanvas):
         #image = self.frame.im.original_image
         if False: #self.frame.tb_file:
             image = Image.open(self.frame.tb_file)
-            print 'using tb'
         else:
             image = self.frame.im.original_image
-            print 'using full img'
             
         imagewidth, imageheight = image.size
 
@@ -480,10 +452,9 @@ class Series_Preview():
         self.im_list = []
         for filename in self.filenames:
             try:
-                self.im_list.append(self.frame.cache.get_im(filename)) #Image.open(filename))
+                self.im_list.append(Image.open(filename))
             except:
                 self.im_list.append(self.blankimage)
-
 
         self.thumbnails = self.im_list
         for im in self.im_list:
