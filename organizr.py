@@ -9,6 +9,9 @@ import wx
 import Image
 import time
 import md5
+import sys
+
+from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 import Exifreader
 
@@ -56,6 +59,13 @@ class Organizr(wx.App):
         return True
 
     
+class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
+    def __init__(self, parent):
+        wx.ListCtrl.__init__(self, parent, -1,
+                             style=wx.LC_REPORT|wx.LC_HRULES)
+        ListCtrlAutoWidthMixin.__init__(self)
+
+        
 class MainFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, -1, "", style=wx.DEFAULT_FRAME_STYLE)
@@ -76,8 +86,9 @@ class MainFrame(wx.Frame):
 
         self.horizontal_splitter = wx.SplitterWindow(self.sidepanel, -1,
                                             style=wx.SP_3D|wx.SP_BORDER)
-        self.exifpanel = wx.TextCtrl(self.horizontal_splitter, -1,
-                                     style=wx.RAISED_BORDER|wx.TE_MULTILINE) 
+        self.exifpanel = AutoWidthListCtrl(self.horizontal_splitter)
+        self.exifpanel.InsertColumn(0, 'Property')
+        self.exifpanel.InsertColumn(1, 'Value')
         self.thumbnailpanel = ThumbnailCanvas(self.horizontal_splitter)
         
         self.statusbar = self.CreateStatusBar(2, 0)
@@ -118,7 +129,7 @@ class MainFrame(wx.Frame):
         # not able to set sash size as per frame width and height
         #self.horizontal_splitter.SetSashPosition(w - int(w/5))
         #self.vertical_splitter.SetSashPosition(h - int(w/5))
-        self.horizontal_splitter.SetSashPosition(550)
+        self.horizontal_splitter.SetSashPosition(650)
         
     def __build_menubar(self):
         """All the menu bar items go here"""
@@ -155,6 +166,7 @@ class MainFrame(wx.Frame):
         """Open a new file"""
         filter = ''.join(['Image files|',
                           '*.png;*.PNG;',
+                          '*.jpg;*.jpeg;*.JPG;*.JPEG',
                           '*.tif;*.tiff;*.TIF;*.TIFF',
                           '*.bmp;*.BMP',
                           '|All files|*.*'])
@@ -200,8 +212,15 @@ class MainFrame(wx.Frame):
         self.playlistcanvas.NEEDREDRAW = True
         self.tb_file = get_thumbnailfile(self.playlist[self.nowshowing])
         self.im.load()
-        self.exifpanel.Clear()
-        self.exifpanel.WriteText(str(self.exifinfo))
+
+        #self.exifpanel.Clear()
+        for info in self.exifinfo.exif_info_list:
+            index = self.exifpanel.InsertStringItem(sys.maxint, info[0])
+            self.exifpanel.SetStringItem(index, 1, info[1])
+            #self.exifpanel.SetStringItem(index, 2, info[1])
+
+        #self.exifpanel.WriteText(str(self.exifinfo))
+        #TODO
         
     def on_key_down(self, event):
         """process key presses"""
@@ -623,7 +642,9 @@ class ExifInfo():
         self.imagefilehandle = imagefilehandle
         self.read_exif_info()
         self.info = self.process_exif_info()
-
+        self.exif_info_list = self.info_list()
+        #print self.exif_info_list
+        
     def read_exif_info(self):
         """read the exif information"""
         try:
@@ -631,6 +652,19 @@ class ExifInfo():
         except Exifreader.ExifError, msg:
             self. exifdata = None
 
+    def info_list(self):
+        """exif information as a list of tuples"""
+        return [('Model', '%s' %(self.info.get('Model', 'NA'))),
+                ('Time', '%s' %(self.info.get('DateTime', 'NA'))),
+                ('Mode', '%s' %(self.info.get('ExposureMode', 'NA'))),
+                ('ISO', '%s' %(self.info.get('ISOSpeed', 'NA'))),
+                ('Aperture', '%s' %(reduce_fraction(self.info.get('FNumber', 'NA')))),
+                ('Shutter time', '%s' %(self.info.get('ExposureTime', 'NA'))),
+                ('Focal length', '%s' %(self.info.get('FocalLength', 'NA'))),
+                ('Flash', '%s' %(self.info.get('FlashMode', 'NA'))),
+                ('Lens', '%s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
+                                     (self.info.get('LongFocalLengthOfLens', 'NA'))))]
+        
     def __str__(self):
         return repr(self)
             
