@@ -321,14 +321,6 @@ class ImageCanvas(DisplayCanvas):
     
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
-        #image = self.frame.im.image
-        #imagewidth, imageheight = image.size
-
-        # self.get_resize_params(imagewidth, imageheight)
-        
-        # self.resizedimage = image.resize((self.resized_width,
-        #                                   self.resized_height)
-        #                                      , Image.ANTIALIAS)
         self.resizedimage = self.frame.im.image.copy()
         self.resizedimage.thumbnail((self.width, self.height), Image.NEAREST) #ANTIALIAS)
         self.resized_width, self.resized_height = self.resizedimage.size
@@ -343,9 +335,7 @@ class ImageCanvas(DisplayCanvas):
 
     def Draw(self, dc):
         """Redraw the image"""
-        print 'started draw', time.time()
         self.resize_image()
-        print 'resized', time.time()
         # blit the buffer on to the screen
         w, h = self.frame.im.image.size
         dc.Blit(self.xoffset, self.yoffset,
@@ -431,7 +421,7 @@ class ThumbnailCanvas(DisplayCanvas):
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
         #image = self.frame.im.original_image
-        if self.frame.tb_file:
+        if False: #self.frame.tb_file:
             image = Image.open(self.frame.tb_file)
             print 'using tb'
         else:
@@ -444,7 +434,7 @@ class ThumbnailCanvas(DisplayCanvas):
         
         self.resizedimage = image.resize((self.resized_width,
                                           self.resized_height)
-                                             , Image.ANTIALIAS)
+                                             , Image.NEAREST)
         # blit the image centerd in x and y axes
         self.bmp = self.ImageToBitmap(self.resizedimage)
 
@@ -455,7 +445,7 @@ class ThumbnailCanvas(DisplayCanvas):
         """Redraw the image"""
         self.resize_image()
         # blit the buffer on to the screen
-        w, h = self.frame.im.original_image.size
+        #w, h = self.frame.im.original_image.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
@@ -519,13 +509,9 @@ class Series_Preview():
             else:
                 self.im_list.append(self.blankimage)
 
-        print 'constructed im list', time.time()
-
         self.thumbnails = self.im_list
         for im in self.im_list:
             im.thumbnail((self.tn_size, self.tn_size)) #, Image.ANTIALIAS)
-
-        print 'created thumbnails', time.time()
 
         for index in range(len(self.im_list)):
             w,h = self.thumbnails[index].size
@@ -534,8 +520,6 @@ class Series_Preview():
             yoffset = (self.tn_size - h) / 2
             self.composite.paste(self.thumbnails[index], (x1 + xoffset, 5 + yoffset)) 
 
-        print 'pasted thumbnails', time.time()
-        print '---------------'
         
 class Im():
     """the loaded image"""
@@ -658,11 +642,11 @@ class Im():
         if exif_orientation == 1:
             return 
         elif exif_orientation == 6:
-            self.image = self.image.rotate(-90)
+            self.original_image = self.original_image.rotate(-90)
         elif exif_orientation == 8:
-            self.image = self.image.rotate(90)
+            self.original_image = self.original_image.rotate(90)
         elif exif_orientation == 3:
-            self.image = self.image.rotate(180)
+            self.original_image = self.original_image.rotate(180)
      
         
 class ExifInfo():
@@ -730,7 +714,6 @@ def resizetest():
 
     for file in jpgfiles:
         stime = time.time()
-        print 'starting resize'
         im = Image.open(file)
         dummy = im.resize((100, 100))
     print 'total time ', time.time() - stime
