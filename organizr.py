@@ -87,7 +87,7 @@ class MainFrame(wx.Frame):
         self.horizontal_splitter = wx.SplitterWindow(self.sidepanel, -1,
                                             style=wx.SP_3D|wx.SP_BORDER)
         self.exifpanel = AutoWidthListCtrl(self.horizontal_splitter)
-        self.exifpanel.InsertColumn(0, 'Property')
+        self.exifpanel.InsertColumn(0, 'Property', width=100)
         self.exifpanel.InsertColumn(1, 'Value')
         self.thumbnailpanel = ThumbnailCanvas(self.horizontal_splitter)
         
@@ -213,14 +213,11 @@ class MainFrame(wx.Frame):
         self.tb_file = get_thumbnailfile(self.playlist[self.nowshowing])
         self.im.load()
 
-        #self.exifpanel.Clear()
+        # clear the exif panel and load new information
+        self.exifpanel.DeleteAllItems()
         for info in self.exifinfo.exif_info_list:
             index = self.exifpanel.InsertStringItem(sys.maxint, info[0])
             self.exifpanel.SetStringItem(index, 1, info[1])
-            #self.exifpanel.SetStringItem(index, 2, info[1])
-
-        #self.exifpanel.WriteText(str(self.exifinfo))
-        #TODO
         
     def on_key_down(self, event):
         """process key presses"""
