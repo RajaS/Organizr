@@ -12,14 +12,6 @@ import md5
 
 import Exifreader
 
-# ####
-# current plans
-
-#  - test if using thumbnail is better than my custom resize
-# ###
-
-
-
 ID_OPEN = wx.NewId(); ID_SAVE = wx.NewId()
 ID_EXIT = wx.NewId(); ID_PREV = wx.NewId()
 ID_NEXT = wx.NewId(); ID_ZOOMIN = wx.NewId()
@@ -54,34 +46,39 @@ class Organizr(wx.App):
     """The core class
     """
     def __init__(self):
-        """
-	"""
+        """initialize the app"""
         wx.App.__init__(self, 0)
-
-    def OnInit(self):
+        self.start_app()
+        
+    def start_app(self):
         """run the organizr"""
         organizrwindow = MainFrame()
         organizrwindow.Show()
         return True
 
+    
 class MainFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, -1, "", style=wx.DEFAULT_FRAME_STYLE)
         self.Maximize()
+        
         # need to have this ready before imagecanvas and thumbnail canvas are initialized
         self.im = Im(self) 
         self.preview = Series_Preview(self, [])
         
-        self.sizer_1_pane_2 = wx.Panel(self, -1)
-        self.playlistcanvas = PlayListCanvas(self) #style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
+        self.bottompanel = wx.Panel(self, -1)
+        self.playlistcanvas = PlayListCanvas(self) 
         
-        self.splitter_2 = wx.SplitterWindow(self.sizer_1_pane_2, -1, style=wx.SP_3D|wx.SP_BORDER)
-        self.canvas = ImageCanvas(self.splitter_2 )#, -1, style=wx.RAISED_BORDER|wx.TAB_TRAVERSAL)
-        self.splitter_2_pane_2 = wx.Panel(self.splitter_2, -1)
+        self.vertical_splitter = wx.SplitterWindow(self.bottompanel, -1,
+                                            style=wx.SP_3D|wx.SP_BORDER)
+        self.canvas = ImageCanvas(self.vertical_splitter)
+        self.sidepanel = wx.Panel(self.vertical_splitter, -1)
 
-        self.splitter_3 = wx.SplitterWindow(self.splitter_2_pane_2, -1, style=wx.SP_3D|wx.SP_BORDER)
-        self.exifpanel = wx.TextCtrl(self.splitter_3, -1, style=wx.RAISED_BORDER|wx.TE_MULTILINE)
-        self.thumbnailpanel = ThumbnailCanvas(self.splitter_3)
+        self.horizontal_splitter = wx.SplitterWindow(self.sidepanel, -1,
+                                            style=wx.SP_3D|wx.SP_BORDER)
+        self.exifpanel = wx.TextCtrl(self.horizontal_splitter, -1,
+                                     style=wx.RAISED_BORDER|wx.TE_MULTILINE) 
+        self.thumbnailpanel = ThumbnailCanvas(self.horizontal_splitter)
         
         self.statusbar = self.CreateStatusBar(2, 0)
         self.cache = Cache()
@@ -103,21 +100,21 @@ class MainFrame(wx.Frame):
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
         self.sizer_1.Add(self.playlistcanvas, 1, wx.ALL|wx.EXPAND, 20)
-        self.sizer_1.Add(self.sizer_1_pane_2, 5, wx.ALL|wx.EXPAND, 4)
+        self.sizer_1.Add(self.bottompanel, 5, wx.ALL|wx.EXPAND, 4)
 
         sizer_2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_3 = wx.BoxSizer(wx.HORIZONTAL)
-        self.splitter_3.SplitHorizontally(self.exifpanel, self.thumbnailpanel, 453)
-        sizer_3.Add(self.splitter_3, 1, wx.EXPAND, 0)
-        self.splitter_2_pane_2.SetSizer(sizer_3)
-        self.splitter_2.SplitVertically(self.canvas, self.splitter_2_pane_2, 700)
-        sizer_2.Add(self.splitter_2, 1, wx.EXPAND, 0)
-        self.sizer_1_pane_2.SetSizer(sizer_2)
+        self.horizontal_splitter.SplitHorizontally(self.exifpanel, self.thumbnailpanel, 453)
+        sizer_3.Add(self.horizontal_splitter, 1, wx.EXPAND, 0)
+        self.sidepanel.SetSizer(sizer_3)
+        self.vertical_splitter.SplitVertically(self.canvas, self.sidepanel, 700)
+        sizer_2.Add(self.vertical_splitter, 1, wx.EXPAND, 0)
+        self.bottompanel.SetSizer(sizer_2)
         self.SetSizer(self.sizer_1)
 
         self.Layout()
         # have to set sash position again for splitter 3
-        self.splitter_3.SetSashPosition(450)
+        self.horizontal_splitter.SetSashPosition(450)
         
     def __build_menubar(self):
         """All the menu bar items go here"""
