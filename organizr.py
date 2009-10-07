@@ -427,24 +427,21 @@ class ThumbnailCanvas(DisplayCanvas):
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
         #image = self.frame.im.original_image
-        if False: #self.frame.tb_file:
-            image = Image.open(self.frame.tb_file)
-        else:
-            image = self.frame.im.original_image
-            
-        self.imagewidth, self.imageheight = image.size
-
-        self.get_resize_params(self.imagewidth, self.imageheight)
+        # if False: #self.frame.tb_file:
+        #     image = Image.open(self.frame.tb_file)
+        # else:
+        #     image = self.frame.im.original_image
+        self.resizedimage = self.frame.im.original_image.copy()
+        self.resizedimage.thumbnail((self.width, self.height), Image.NEAREST)
+        self.resized_width, self.resized_height = self.resizedimage.size
+        self.xoffset = (self.width-self.resized_width)/2
+        self.yoffset = (self.height-self.resized_height)/2
         
-        self.resizedimage = image.resize((self.resized_width,
-                                          self.resized_height)
-                                             , Image.NEAREST)
         # blit the image centerd in x and y axes
         self.bmp = self.image_to_bitmap(self.resizedimage)
 
         self.imagedc = wx.MemoryDC()
         self.imagedc.SelectObject(self.bmp)
-
 
     def draw(self, dc):
         """Redraw the image"""
@@ -455,25 +452,21 @@ class ThumbnailCanvas(DisplayCanvas):
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
         
-
-        print ''
-        print '---------------------------'
-        print 'checking image sizes'
-        print 'im size', self.frame.im.original_image.size
-        print 'resized im size', self.frame.im.image.size
-        print 'thumbnail size', self.resizedimage.size        
-        print 'zoomframe', self.frame.im.zoomframe
-
         tb_width, tb_height = self.resizedimage.size
         im_width, im_height = self.frame.im.original_image.size
         tb_scale = tb_width / im_width
 
         #zoomframe = self.frame.im.zoomframe / tb_scale
-        x1, y1, x2, y2 = [x * tb_scale for x in self.frame.im.zoomframe]
+        #x1, y1, x2, y2 = [x * tb_scale for x in self.frame.im.zoomframe]
+        x1, y1, x2, y2 = self.frame.im.zoomframe
 
-        y1 = tb_height - y1
-        y2 = tb_height - y2
+        print 'original zoomframe', self.frame.im.zoomframe
         
+        x1 = x1 * (self.resized_width / self.frame.im.width)
+        x2 = x2 * (self.resized_width / self.frame.im.width)
+        y1 = y1 * (self.resized_height / self.frame.im.height)
+        y2 = y2 * (self.resized_height / self.frame.im.height)
+
         print 'new zoomframe', x1, y1, x2, y2
         
         dc.SetPen(self.pen)
@@ -547,6 +540,7 @@ class Im():
         """imagefilenames is a list of the filenames.
         for single image this is a singleton list.
         Multiple items indicate this is a series to be loaded"""
+        # start with blank images
         self.image = Image.new('RGB', (100, 200), (255, 255, 255))
         self.original_image = Image.new('RGB', (100, 200), (255, 255, 255))
 
@@ -562,7 +556,6 @@ class Im():
         stime = time.time()
         filepath = self.frame.playlist[self.frame.nowshowing]
         try:
-            #self.original_image = self.frame.cache.get_im(filepath)
             self.original_image = Image.open(filepath, 'r')
         except:
             self.frame.SetStatusText('Could not load image')
@@ -581,6 +574,7 @@ class Im():
         self.zoom_xoffset = None
         self.zoom_yoffset = None
         self.zoom_ratio = 1
+        # on loading, there is no zoom
         self.image = self.original_image
         
         self.frame.canvas.NEEDREDRAW = True
@@ -606,16 +600,17 @@ class Im():
         newheight = self.height / scale
         
         if not self.zoom_xoffset:
+            # the zoom frame is centered
             self.zoom_xoffset = (self.width - newwidth) / 2
         else:
             self.zoom_xoffset = min(self.zoom_xoffset,
-                                    (self.width - newwidth) / 2)
+                                    self.width - newwidth)
 
         if not self.zoom_yoffset:
             self.zoom_yoffset = (self.height - newheight) / 2
         else:
             self.zoom_yoffset = min(self.zoom_yoffset,
-                                    (self.height - newheight) / 2)
+                                    self.height - newheight)
 
         self.zoomframe = [int(value) for value in
                           [self.zoom_xoffset, self.zoom_yoffset,
