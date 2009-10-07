@@ -432,9 +432,9 @@ class ThumbnailCanvas(DisplayCanvas):
         else:
             image = self.frame.im.original_image
             
-        imagewidth, imageheight = image.size
+        self.imagewidth, self.imageheight = image.size
 
-        self.get_resize_params(imagewidth, imageheight)
+        self.get_resize_params(self.imagewidth, self.imageheight)
         
         self.resizedimage = image.resize((self.resized_width,
                                           self.resized_height)
@@ -445,6 +445,7 @@ class ThumbnailCanvas(DisplayCanvas):
         self.imagedc = wx.MemoryDC()
         self.imagedc.SelectObject(self.bmp)
 
+
     def draw(self, dc):
         """Redraw the image"""
         self.resize_image()
@@ -454,13 +455,32 @@ class ThumbnailCanvas(DisplayCanvas):
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
         
-        x1, y1, x2, y2 = self.frame.im.zoomframe
 
+        print ''
+        print '---------------------------'
+        print 'checking image sizes'
+        print 'im size', self.frame.im.original_image.size
+        print 'resized im size', self.frame.im.image.size
+        print 'thumbnail size', self.resizedimage.size        
+        print 'zoomframe', self.frame.im.zoomframe
+
+        tb_width, tb_height = self.resizedimage.size
+        im_width, im_height = self.frame.im.original_image.size
+        tb_scale = tb_width / im_width
+
+        #zoomframe = self.frame.im.zoomframe / tb_scale
+        x1, y1, x2, y2 = [x * tb_scale for x in self.frame.im.zoomframe]
+
+        y1 = tb_height - y1
+        y2 = tb_height - y2
+        
+        print 'new zoomframe', x1, y1, x2, y2
+        
         dc.SetPen(self.pen)
-        dc.drawLine(x1, y1, x2, y1)
-        dc.drawLine(x2, y1, x2, y2)
-        dc.drawLine(x2, y2, x1, y2)
-        dc.drawLine(x1, y2, x1, y1)
+        dc.DrawLine(x1, y1, x2, y1)
+        dc.DrawLine(x2, y1, x2, y2)
+        dc.DrawLine(x2, y2, x1, y2)
+        dc.DrawLine(x1, y2, x1, y1)
 
         self.NEEDREDRAW = False 
 
@@ -495,7 +515,7 @@ class SeriesPreview():
             else:
                 try:
                     self.im_list.append(Image.open(self.filename))
-                    print 'opened image instead of thumbnail'
+                    print 'opened image instead of th umbnail'
                 except:
                     self.im_list.append(self.blankimage)
 
@@ -515,7 +535,7 @@ class SeriesPreview():
 
         # draw box highlighting current image
         center = int(len(self.im_list) / 2)
-        draw = ImageDraw.draw(self.composite)
+        draw = ImageDraw.Draw(self.composite)
         x1 = center * (self.tn_size + 10)
         x2 = x1 + 105
         draw.line((x1, 0, x2, 0, x2, 100, x1, 100, x1, 0),
