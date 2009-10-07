@@ -16,6 +16,14 @@ from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 import Exifreader
 
+#########################
+# TODO:
+#  - Fix zoom and display of zoom frame in thumbnail
+#  - Get exif information for all files in playlist
+#  - Allow custom sort of files
+##########################
+
+
 ID_OPEN = wx.NewId(); ID_SAVE = wx.NewId()
 ID_EXIT = wx.NewId(); ID_PREV = wx.NewId()
 ID_NEXT = wx.NewId(); ID_ZOOMIN = wx.NewId()
@@ -62,6 +70,8 @@ class Organizr(wx.App):
     
 class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def __init__(self, parent):
+        """Use a mixin to construct a listctrl where the width of the
+        last column is adjusted automatically to use up remaining space"""
         wx.ListCtrl.__init__(self, parent, -1,
                              style=wx.LC_REPORT|wx.LC_HRULES)
         ListCtrlAutoWidthMixin.__init__(self)
@@ -71,20 +81,20 @@ class MainFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, -1, "", style=wx.DEFAULT_FRAME_STYLE)
         self.Maximize()
-        
-        # need to have this ready before imagecanvas and thumbnail canvas are initialized
-        self.im = Im(self) 
-        self.preview = Series_Preview(self, [])
-        self.tb_file = None # filename for thumbnail
-        
+
+        self.__set_properties()
+
+        # first split - playlist on top
         self.bottompanel = wx.Panel(self, -1)
         self.playlistcanvas = PlayListCanvas(self) 
-        
+
+        # next split the bottom panel into canvas and sidepanel
         self.vertical_splitter = wx.SplitterWindow(self.bottompanel, -1,
                                             style=wx.SP_3D|wx.SP_BORDER)
         self.canvas = ImageCanvas(self.vertical_splitter)
         self.sidepanel = wx.Panel(self.vertical_splitter, -1)
 
+        # split sidepanel into exifpanel and thumbnailpanel
         self.horizontal_splitter = wx.SplitterWindow(self.sidepanel, -1,
                                             style=wx.SP_3D|wx.SP_BORDER)
         self.exifpanel = AutoWidthListCtrl(self.horizontal_splitter)
@@ -93,8 +103,6 @@ class MainFrame(wx.Frame):
         self.thumbnailpanel = ThumbnailCanvas(self.horizontal_splitter)
         
         self.statusbar = self.CreateStatusBar(2, 0)
-
-        self.__set_properties()
         self.__do_layout()
         self.__build_menubar()
         self.__set_bindings()
@@ -102,11 +110,14 @@ class MainFrame(wx.Frame):
         
     def __set_properties(self):
         self.SetTitle("Organizr")
-        #variables and flags
         self.CURRENT_DIR = os.path.expanduser('~')
         self.WRAPON = True # wrap around in playlist
         self.AUTOROTATE = True # automatically rotate images
-
+        # need to have these ready before imagecanvas and thumbnail canvas are initialized
+        self.im = Im(self) 
+        self.preview = Series_Preview(self, [])
+        self.tb_file = None # filename for thumbnail
+        
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
         self.sizer_1.Add(self.playlistcanvas, 1, wx.ALL|wx.EXPAND, 20)
@@ -120,8 +131,8 @@ class MainFrame(wx.Frame):
         self.vertical_splitter.SplitVertically(self.canvas, self.sidepanel, 700)
         sizer_2.Add(self.vertical_splitter, 1, wx.EXPAND, 0)
         self.bottompanel.SetSizer(sizer_2)
-        self.SetSizer(self.sizer_1)
 
+        self.SetSizer(self.sizer_1)
         self.Layout()
 
     def __set_sash_positions(self):
@@ -189,8 +200,11 @@ class MainFrame(wx.Frame):
         if self.nowshowing == len(self.playlist):
             if self.WRAPON:
                 self.nowshowing = 0
+                self.SetStatusText('Wrapping to beginning', 1)
+
             else:
                 self.nowshowing -= 1
+                self.SetStatusText('Reached end of playlist', 1)
                 
         self.load_new()
         
@@ -201,24 +215,31 @@ class MainFrame(wx.Frame):
         if self.nowshowing < 0:
             if self.WRAPON:
                 self.nowshowing = len(self.playlist) - 1
+                self.SetStatusText('Wrapping to end', 2)
+
             else:
                 self.nowshowing = 0
+                self.SetStatusText('Reached beginning of playlist', 2)
+
         self.load_new()
                 
     def load_new(self):
         """common things to do when a new image is loaded"""
+        # get and display exif info
         self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
-        self.preview  = Series_Preview(self, self.playlist[
-                        self.nowshowing-3:self.nowshowing+4])
-        self.playlistcanvas.NEEDREDRAW = True
-        self.tb_file = get_thumbnailfile(self.playlist[self.nowshowing])
-        self.im.load()
-
-        # clear the exif panel and load new information
         self.exifpanel.DeleteAllItems()
         for info in self.exifinfo.exif_info_list:
             index = self.exifpanel.InsertStringItem(sys.maxint, info[0])
             self.exifpanel.SetStringItem(index, 1, info[1])
+
+        # display thumbnails preview
+        self.preview  = Series_Preview(self, self.playlist[
+                        self.nowshowing-3:self.nowshowing+4])
+        self.frame.playlistcanvas.NEEDREDRAW = True
+
+        # load and display image and thumbnail
+        self.tb_file = get_thumbnailfile(self.playlist[self.nowshowing])
+        self.im.load()
         
     def on_key_down(self, event):
         """process key presses"""
