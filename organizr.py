@@ -423,14 +423,12 @@ class ThumbnailCanvas(DisplayCanvas):
         DisplayCanvas.__init__(self, parent)
         self.frame = wx.GetTopLevelParent(self)
         self.pen = wx.Pen((255, 0, 0), 2, wx.SOLID)
+        self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse_events)
+
+        self.startdrag = False
         
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
-        #image = self.frame.im.original_image
-        # if False: #self.frame.tb_file:
-        #     image = Image.open(self.frame.tb_file)
-        # else:
-        #     image = self.frame.im.original_image
         self.resizedimage = self.frame.im.original_image.copy()
         self.resizedimage.thumbnail((self.width, self.height), Image.NEAREST)
         self.resized_width, self.resized_height = self.resizedimage.size
@@ -443,39 +441,53 @@ class ThumbnailCanvas(DisplayCanvas):
         self.imagedc = wx.MemoryDC()
         self.imagedc.SelectObject(self.bmp)
 
+    def on_mouse_events(self, event):
+        if event.LeftDown():
+            if not self.startdrag:
+                self.startdrag = True
+                print event.GetPosition()
+                print 'starting drag'
+        elif event.Dragging() and event.LeftIsDown():
+            if self.startdrag:
+                print 'dragging'
+        elif event.LeftUp():
+            if self.startdrag:
+                print event.GetPosition()
+                print 'stopping drag'
+                self.startdrag = False
+        
     def draw(self, dc):
         """Redraw the image"""
         self.resize_image()
         # blit the buffer on to the screen
-        #w, h = self.frame.im.original_image.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
         
-        tb_width, tb_height = self.resizedimage.size
-        im_width, im_height = self.frame.im.original_image.size
-        tb_scale = tb_width / im_width
-
-        #zoomframe = self.frame.im.zoomframe / tb_scale
-        #x1, y1, x2, y2 = [x * tb_scale for x in self.frame.im.zoomframe]
         x1, y1, x2, y2 = self.frame.im.zoomframe
-
-        print 'original zoomframe', self.frame.im.zoomframe
         
-        x1 = x1 * (self.resized_width / self.frame.im.width)
-        x2 = x2 * (self.resized_width / self.frame.im.width)
-        y1 = y1 * (self.resized_height / self.frame.im.height)
-        y2 = y2 * (self.resized_height / self.frame.im.height)
+        x1 = self.xoffset + x1 * (self.resized_width / self.frame.im.width)
+        x2 = self.xoffset + x2 * (self.resized_width / self.frame.im.width)
+        y1 = self.yoffset +  y1 * (self.resized_height / self.frame.im.height)
+        y2 = self.yoffset +  y2 * (self.resized_height / self.frame.im.height)
 
-        print 'new zoomframe', x1, y1, x2, y2
+        self.draw_frame(dc, x1, y1, x2, y2)
+        self.NEEDREDRAW = False 
         
+    def draw_frame(self, dc, x1, y1, x2, y2):
+        """draw the zoomframe"""
         dc.SetPen(self.pen)
+        dc.SetLogicalFunction(wx.XOR)
+
         dc.DrawLine(x1, y1, x2, y1)
         dc.DrawLine(x2, y1, x2, y2)
         dc.DrawLine(x2, y2, x1, y2)
         dc.DrawLine(x1, y2, x1, y1)
 
-        self.NEEDREDRAW = False 
+        # dc.DrawLine(x1, y1, x2, y1)
+        # dc.DrawLine(x2, y1, x2, y2)
+        # dc.DrawLine(x2, y2, x1, y2)
+        # dc.DrawLine(x1, y2, x1, y1)
 
 
 class SeriesPreview():
