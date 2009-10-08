@@ -11,6 +11,7 @@ import ImageDraw
 import time
 import md5
 import sys
+import copy
 
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
@@ -288,6 +289,7 @@ class DisplayCanvas(wx.Panel):
         wx.Panel.__init__(self, parent, -1, **kwargs)
 
         self.NEEDREDRAW = False
+        self.NEEDREDRAWFRAME = False
         self.Bind(wx.EVT_SIZE, self.on_resize)
         self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_PAINT, self.on_paint) 
@@ -300,6 +302,13 @@ class DisplayCanvas(wx.Panel):
             dc.Clear()  #clear old image if still there        
             self.draw(dc)
             self.NEEDREDRAW = False
+        if self.NEEDREDRAWFRAME:
+            dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
+                               wx.BUFFER_CLIENT_AREA)
+
+            self.draw_frame(dc)
+            
+            self.NEEDREDRAWFRAME = False
 
     def image_to_bitmap(self, img):
         newimage = apply(wx.EmptyImage, img.size)
@@ -422,9 +431,12 @@ class ThumbnailCanvas(DisplayCanvas):
 	"""
         DisplayCanvas.__init__(self, parent)
         self.frame = wx.GetTopLevelParent(self)
-        self.pen = wx.Pen((255, 0, 0), 2, wx.SOLID)
+        self.pen = wx.Pen(wx.WHITE, 2, wx.SOLID)
         self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse_events)
 
+        self.oldx1 = 0; self.oldx2 = 0
+        self.oldy1 = 0; self.oldy2 = 0
+        self.NEEDREDRAWFRAME = False
         self.startdrag = False
         
     def resize_image(self):
@@ -442,14 +454,33 @@ class ThumbnailCanvas(DisplayCanvas):
         self.imagedc.SelectObject(self.bmp)
 
     def on_mouse_events(self, event):
-        if event.LeftDown():
-            if not self.startdrag:
-                self.startdrag = True
-                print event.GetPosition()
-                print 'starting drag'
+        """Handle mouse events.
+        Left click and drag moves the zoomframe"""
+        x, y = event.GetPosition()
+
+        # unless we start dragging, only click matters
+        if not self.startdrag and not event.LeftDown():
+            return
+        
+        elif event.LeftDown() and not self.startdrag:
+            self.startdrag = True
+            self.startx, self.starty = x, y
+                
         elif event.Dragging() and event.LeftIsDown():
             if self.startdrag:
-                print 'dragging'
+                self.currx, self.curry = event.GetPosition()
+                self.x1 += self.currx - self.startx
+                self.x2 += self.currx - self.startx
+                self.y1 += self.curry - self.starty
+                self.y2 += self.curry - self.starty
+
+                self.startx = self.currx
+                self.starty = self.starty
+
+                dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
+                               wx.BUFFER_CLIENT_AREA)
+                self.NEEDREDRAWFRAME = True
+
         elif event.LeftUp():
             if self.startdrag:
                 print event.GetPosition()
@@ -463,33 +494,30 @@ class ThumbnailCanvas(DisplayCanvas):
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
-        
         x1, y1, x2, y2 = self.frame.im.zoomframe
-        
-        x1 = self.xoffset + x1 * (self.resized_width / self.frame.im.width)
-        x2 = self.xoffset + x2 * (self.resized_width / self.frame.im.width)
-        y1 = self.yoffset +  y1 * (self.resized_height / self.frame.im.height)
-        y2 = self.yoffset +  y2 * (self.resized_height / self.frame.im.height)
+        self.x1 = int(self.xoffset + x1 * (self.resized_width / self.frame.im.width))
+        self.x2 = int(self.xoffset + x2 * (self.resized_width / self.frame.im.width))
+        self.y1 = int(self.yoffset + y1 * (self.resized_height / self.frame.im.height))
+        self.y2 = int(self.yoffset + y2 * (self.resized_height / self.frame.im.height))
 
-        self.draw_frame(dc, x1, y1, x2, y2)
+        self.draw_frame(dc)
         self.NEEDREDRAW = False 
         
-    def draw_frame(self, dc, x1, y1, x2, y2):
+    def draw_frame(self, dc):
         """draw the zoomframe"""
         dc.SetPen(self.pen)
+        dc.SetBrush(wx.TRANSPARENT_BRUSH)
         dc.SetLogicalFunction(wx.XOR)
 
-        dc.DrawLine(x1, y1, x2, y1)
-        dc.DrawLine(x2, y1, x2, y2)
-        dc.DrawLine(x2, y2, x1, y2)
-        dc.DrawLine(x1, y2, x1, y1)
+        r = wx.Rect(self.oldx1, self.oldy1, self.oldx2, self.oldy2)
+        dc.DrawRectangleRect(r)
+        
+        r = wx.Rect(self.x1, self.y1, self.x2, self.y2)
+        dc.DrawRectangleRect(r)
 
-        # dc.DrawLine(x1, y1, x2, y1)
-        # dc.DrawLine(x2, y1, x2, y2)
-        # dc.DrawLine(x2, y2, x1, y2)
-        # dc.DrawLine(x1, y2, x1, y1)
-
-
+        self.oldx1, self.oldx2, self.oldy1, self.oldy2 = copy.copy((
+            self.x1, self.x2, self.y1, self.y2))
+        
 class SeriesPreview():
     """A composite image made of thumbnails from all playlist images.
     Should be triggered by opening a new file"""
