@@ -100,7 +100,8 @@ class MainFrame(wx.Frame):
 
         # first split - playlist on top
         self.bottompanel = wx.Panel(self, -1)
-        self.playlistcanvas = PlayListCanvas(self) 
+        self.playlistcanvas = PlayListCanvas(self)
+        self.actionlist = ActionList(self)
 
         # next split the bottom panel into canvas and sidepanel
         self.vertical_splitter = wx.SplitterWindow(self.bottompanel, -1,
@@ -274,6 +275,8 @@ class MainFrame(wx.Frame):
             self.im.no_zoom(event)
         elif keycode in [314, 315, 316, 317]: #arrow keys
             self.im.shift_zoom_frame(event)
+        elif keycode == 65: # 'a'
+            self.actionlist.ShowModal()
         else:
             print 'key pressed - ', keycode
         
@@ -408,7 +411,6 @@ class PlayListCanvas(DisplayCanvas):
         imagewidth, imageheight = image.size
 
         self.get_resize_params(imagewidth, imageheight)
-        
         self.resizedimage = image.resize((self.resized_width,
                                           self.resized_height)
                                              , Image.ANTIALIAS)
@@ -422,7 +424,6 @@ class PlayListCanvas(DisplayCanvas):
         """Redraw the image"""
         self.resize_image()
         # blit the buffer on to the screen
-        #w, h = self.frame.preview.composite.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
@@ -588,6 +589,59 @@ class ThumbnailCanvas(DisplayCanvas):
 
         self.oldx1, self.oldx2, self.oldy1, self.oldy2 = copy.copy((
             self.x1, self.x2, self.y1, self.y2))
+
+        
+class ActionList(wx.Dialog):
+    def __init__(self, parent):
+        """presents a list of available actions that are
+        shell commands to be run on the file or the current
+        selection of files"""
+        wx.Dialog.__init__(self, parent)
+        self.listpanel = wx.Panel(self, -1, style=wx.SUNKEN_BORDER)
+        self.controlpanel = wx.Panel(self, -1, style=wx.SUNKEN_BORDER|
+                                    wx.TAB_TRAVERSAL)
+        self.playlistctrl = wx.ListCtrl(self.listpanel, -1,
+                            style=wx.LC_REPORT|wx.LC_SINGLE_SEL | wx.SUNKEN_BORDER)
+        self.playlistctrl.InsertColumn(0, "Key", width=100)
+        self.playlistctrl.InsertColumn(1, "Action", width=180)
+        
+        self.addbutton = wx.Button(self.controlpanel, -1, 'Add')
+        self.removebutton = wx.Button(self.controlpanel, -1, 'Remove')
+        self.editbutton = wx.Button(self.controlpanel, -1, 'Edit')
+
+        self.__do_layout()
+        self.populate()
+
+    def __do_layout(self):
+        """"""
+        mainsizer = wx.BoxSizer(wx.VERTICAL)
+        controlsizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_1 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_1.Add(self.playlistctrl, 1, wx.EXPAND, 0)
+        self.listpanel.SetSizer(sizer_1)
+        mainsizer.Add(self.listpanel, 5, wx.ALL|wx.EXPAND, 2)
+        
+        controlsizer.Add(self.addbutton, 1, wx.ALIGN_CENTER_VERTICAL, 0)
+        controlsizer.Add(self.removebutton, 1, wx.ALIGN_CENTER_VERTICAL, 0)
+        controlsizer.Add(self.editbutton, 1, wx.ALIGN_CENTER_VERTICAL, 0)
+
+        self.controlpanel.SetSizer(controlsizer)
+        mainsizer.Add(self.controlpanel, 1, wx.LEFT|wx.RIGHT|wx.BOTTOM|
+                      wx.EXPAND, 2)
+        self.SetSizer(mainsizer)
+        mainsizer.Fit(self)
+        self.Layout()
+        self.SetSize((300, 400))
+
+    def populate(self):
+        """populate the action list by reading from a file"""
+        test_actions = [
+            ('r', 'Remove Raw', 'mv %f /tmp'),
+            ('j', 'Remove image', 'mv %F /tmp')]
+        for action in test_actions:
+            index = self.playlistctrl.InsertStringItem(sys.maxint, action[0])
+            self.playlistctrl.SetStringItem(index, 1, action[1])
+
         
 class SeriesPreview():
     """A composite image made of thumbnails from all playlist images.
