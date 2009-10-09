@@ -400,6 +400,7 @@ class PlayListCanvas(DisplayCanvas):
     def __init__(self, parent):
         DisplayCanvas.__init__(self, parent, style=wx.RAISED_BORDER)
         self.frame = wx.GetTopLevelParent(self)
+        self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse_events)
         
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
@@ -425,7 +426,18 @@ class PlayListCanvas(DisplayCanvas):
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
-        
+
+    def on_mouse_events(self, event):
+        """catch mouse clicks and jump to corresponding image"""
+        if event.LeftDown():
+            x,y = event.GetPosition()
+            pos = int((x - self.xoffset) / (self.resized_width / 7))
+            relative_pos = pos - 3
+            if relative_pos != 0:
+                self.frame.nowshowing += relative_pos
+                self.frame.load_new()
+        else:
+            pass
         
 class ThumbnailCanvas(DisplayCanvas):
     """panel where the thumbnail image is displayed
