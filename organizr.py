@@ -473,41 +473,30 @@ class ThumbnailCanvas(DisplayCanvas):
         elif event.LeftDown() and not self.startdrag:
             self.startdrag = True
             self.startx, self.starty = x, y
-            print 'start drag at', x, y
-                
+            self.relative_x1 = self.x1 - self.startx
+            self.relative_x2 = self.x2 - self.startx
+            self.relative_y1 = self.y1 - self.starty
+            self.relative_y2 = self.y2 - self.starty
+
         elif event.Dragging() and event.LeftIsDown():
             if not in_rectangle((x,y), (self.x1, self.y1, self.x2, self.y2)):
                 return
                 
             if self.startdrag:
-                print '-------------'
-                print self.reverse_translate_frame()
                 self.currx, self.curry = event.GetPosition()
-                self.x1 += self.currx - self.startx
-                self.x2 += self.currx - self.startx
-                self.y1 += self.curry - self.starty
-                self.y2 += self.curry - self.starty
 
-                print 'after drag'
-                print self.reverse_translate_frame()
-                self.startx = self.currx
-                self.starty = self.starty
+                self.x1 = self.relative_x1 + self.currx
+                self.x2 = self.relative_x2 + self.currx
+                self.y1 = self.relative_y1 + self.curry
+                self.y2 = self.relative_y2 + self.curry
 
-                # dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
-                #                wx.BUFFER_CLIENT_AREA)
-                # self.NEEDREDRAWFRAME = True
                 self.frame.im.zoomframe = self.reverse_translate_frame()
                 self.frame.canvas.NEEDREDRAW = True
                 self.NEEDREDRAW = True
                 self.NEEDREDRAWFRAME = True
-                #self.frame.canvas.draw()
-                #self.draw()
-                #self.draw_frame
 
         elif event.LeftUp():
             if self.startdrag:
-                print event.GetPosition()
-                print 'stopping drag'
                 self.startdrag = False
         
     def draw(self, dc):
