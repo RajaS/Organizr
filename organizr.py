@@ -496,29 +496,11 @@ class ThumbnailCanvas(DisplayCanvas):
                    y1 < self.yoffset or\
                    x2 > self.xoffset + self.resized_width or\
                    y2 > self.yoffset + self.resized_height:
-                    print 'out of frame'
                     return
 
                 else:
                     (self.x1, self.y1, self.x2, self.y2) = copy.deepcopy(
                         (x1, y1, x2, y2))
-                # # todo : maybe dont redraw at all in edge cases
-                # if self.x1 < self.xoffset:
-                #     self.x2 += self.xoffset - self.x1
-                #     self.x1 = self.xoffset
-
-                # if self.y1 < self.yoffset:
-                #     self.y2 += self.yoffset - self.y1
-                #     self.y1 = self.yoffset
-
-                # if self.x2 > self.xoffset + self.resized_width:
-                #     self.x1 -= self.x2 - self.resized_width - self.xoffset
-                #     self.x2 = self.resized_width + self.xoffset
-
-                # if self.y2 > self.yoffset + self.resized_height:
-                #     self.y1 -= self.y2 - self.resized_height - self.yoffset
-                #     self.y2 = self.resized_height + self.yoffset
-                    
                 
                 self.frame.im.zoomframe = self.reverse_translate_frame()
                 self.frame.canvas.NEEDREDRAW = True
@@ -531,7 +513,6 @@ class ThumbnailCanvas(DisplayCanvas):
         
     def draw(self, dc):
         """Redraw the image"""
-        print 'drawing thumbnail'
         # update thumbnail frame coords
         # if we are dragging on thumbnail frame,
         # update the canvas zoom offset
@@ -591,12 +572,6 @@ class ThumbnailCanvas(DisplayCanvas):
     def draw_frame(self, dc):
         """draw the zoomframe"""
         dc.SetPen(self.pen)
-        #dc.SetBrush(wx.TRANSPARENT_BRUSH)
-        #dc.SetLogicalFunction(wx.XOR)
-
-        print 'drawing', self.x1, self.y1, self.x2, self.y2
-        # r = wx.Rect(self.x1, self.y1, self.x2, self.y2)
-        # dc.DrawRectangleRect(r)
         self.draw_rect(dc, (self.x1, self.y1, self.x2, self.y2))
 
         self.oldx1, self.oldx2, self.oldy1, self.oldy2 = copy.copy((
@@ -669,7 +644,7 @@ class Im():
 
         self.frame = parent
  
-        self.width = 0; self.height = 0
+        self.width = 1; self.height = 1
         self.zoomframe = (0, 0, 0, 0)
         self.ZOOMSTEP = 1.1
         self.SHIFTZOOMSTEP = 5
@@ -722,15 +697,15 @@ class Im():
         frame = []
         newwidth = self.width / scale
         newheight = self.height / scale
-        
-        if not self.zoom_xoffset:
+
+        if self.zoom_xoffset == None:
             # the zoom frame is centered
             self.zoom_xoffset = (self.width - newwidth) / 2
         else:
             self.zoom_xoffset = min(self.zoom_xoffset,
                                     self.width - newwidth)
 
-        if not self.zoom_yoffset:
+        if self.zoom_yoffset == None:
             self.zoom_yoffset = (self.height - newheight) / 2
         else:
             self.zoom_yoffset = min(self.zoom_yoffset,
@@ -801,7 +776,6 @@ class ExifInfo():
         self.read_exif_info()
         self.info = self.process_exif_info()
         self.exif_info_list = self.info_list()
-        #print self.exif_info_list
         
     def read_exif_info(self):
         """read the exif information"""
