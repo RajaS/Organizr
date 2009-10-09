@@ -57,6 +57,17 @@ def get_thumbnailfile(filename):
     else:
         return None
 
+def in_rectangle((x,y), (x1, y1, x2, y2)):
+    """is the point (x,y) within the rectangle whose
+    corners are (x1, y1) and (x2, y2)"""
+    if x1 > x2:
+        x1, x2 = x2, x1
+    if y1 > y2:
+        y1, y2 = y2, y1
+
+    return x1 < x < x2 and y1 < y < y2
+
+    
 class Organizr(wx.App):
     """The core class"""
     def __init__(self):
@@ -302,13 +313,6 @@ class DisplayCanvas(wx.Panel):
             dc.Clear()  #clear old image if still there        
             self.draw(dc)
             self.NEEDREDRAW = False
-        if self.NEEDREDRAWFRAME:
-            dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
-                               wx.BUFFER_CLIENT_AREA)
-
-            self.draw_frame(dc)
-            
-            self.NEEDREDRAWFRAME = False
 
     def image_to_bitmap(self, img):
         newimage = apply(wx.EmptyImage, img.size)
@@ -436,8 +440,12 @@ class ThumbnailCanvas(DisplayCanvas):
 
         self.oldx1 = 0; self.oldx2 = 0
         self.oldy1 = 0; self.oldy2 = 0
+        self.xoffset = 0; self.yoffset = 0
+        self.resized_height = 0; self.resized_width = 0
         self.NEEDREDRAWFRAME = False
         self.startdrag = False
+        self.firstdraw = True
+
         
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
@@ -465,21 +473,36 @@ class ThumbnailCanvas(DisplayCanvas):
         elif event.LeftDown() and not self.startdrag:
             self.startdrag = True
             self.startx, self.starty = x, y
+            print 'start drag at', x, y
                 
         elif event.Dragging() and event.LeftIsDown():
+            if not in_rectangle((x,y), (self.x1, self.y1, self.x2, self.y2)):
+                return
+                
             if self.startdrag:
+                print '-------------'
+                print self.reverse_translate_frame()
                 self.currx, self.curry = event.GetPosition()
                 self.x1 += self.currx - self.startx
                 self.x2 += self.currx - self.startx
                 self.y1 += self.curry - self.starty
                 self.y2 += self.curry - self.starty
 
+                print 'after drag'
+                print self.reverse_translate_frame()
                 self.startx = self.currx
                 self.starty = self.starty
 
-                dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
-                               wx.BUFFER_CLIENT_AREA)
+                # dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
+                #                wx.BUFFER_CLIENT_AREA)
+                # self.NEEDREDRAWFRAME = True
+                self.frame.im.zoomframe = self.reverse_translate_frame()
+                self.frame.canvas.NEEDREDRAW = True
+                self.NEEDREDRAW = True
                 self.NEEDREDRAWFRAME = True
+                #self.frame.canvas.draw()
+                #self.draw()
+                #self.draw_frame
 
         elif event.LeftUp():
             if self.startdrag:
@@ -489,31 +512,72 @@ class ThumbnailCanvas(DisplayCanvas):
         
     def draw(self, dc):
         """Redraw the image"""
+        print 'drawing thumbnail'
+        # update thumbnail frame coords
+        # if we are dragging on thumbnail frame,
+        # update the canvas zoom offset
+        if self.startdrag:
+            self.frame.im.zoomframe = self.reverse_translate_frame()
+            self.frame.im.image = self.frame.im.original_image.crop(
+                self.frame.im.zoomframe)
+        
         self.resize_image()
         # blit the buffer on to the screen
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
-        x1, y1, x2, y2 = self.frame.im.zoomframe
-        self.x1 = int(self.xoffset + x1 * (self.resized_width / self.frame.im.width))
-        self.x2 = int(self.xoffset + x2 * (self.resized_width / self.frame.im.width))
-        self.y1 = int(self.yoffset + y1 * (self.resized_height / self.frame.im.height))
-        self.y2 = int(self.yoffset + y2 * (self.resized_height / self.frame.im.height))
 
+        if not self.startdrag:
+            self.translate_frame() 
+            
         self.draw_frame(dc)
-        self.NEEDREDRAW = False 
+        self.NEEDREDRAW = False
+
+    def translate_frame(self):
+        """get the zoomframe of the image and translate into
+        frame to be drawn over the thumbnail"""
+        x1, y1, x2, y2 = self.frame.im.zoomframe
+        self.x1 = int(self.xoffset + x1 *
+                      (self.resized_width / self.frame.im.width))
+        self.x2 = int(self.xoffset + x2 *
+                      (self.resized_width / self.frame.im.width))
+        self.y1 = int(self.yoffset + y1 *
+                      (self.resized_height / self.frame.im.height))
+        self.y2 = int(self.yoffset + y2 *
+                      (self.resized_height / self.frame.im.height))
+        
+    def reverse_translate_frame(self):
+        """given thumbnails frame, calculate zoomframe for the image"""
+        x1 = (self.x1 - self.xoffset) * (
+              self.frame.im.width / self.resized_width)
+        x2 = (self.x2 - self.xoffset) * (
+              self.frame.im.width / self.resized_width)
+        y1 = (self.y1 - self.yoffset) * (
+              self.frame.im.height / self.resized_height)
+        y2 = (self.y2 - self.yoffset) * (
+              self.frame.im.height / self.resized_height)
+        return (x1, y1, x2, y2)
+        
+    def draw_rect(self, dc, coords):
+        """draw rectangle as series of lines
+        coords are (x1, y1, x2, y2)"""
+        x1, y1, x2, y2 = coords
+        dc.DrawLine(x1, y1, x2, y1)
+        dc.DrawLine(x2, y1, x2, y2)
+        dc.DrawLine(x2, y2, x1, y2)
+        dc.DrawLine(x1, y2, x1, y1)
+
         
     def draw_frame(self, dc):
         """draw the zoomframe"""
         dc.SetPen(self.pen)
-        dc.SetBrush(wx.TRANSPARENT_BRUSH)
-        dc.SetLogicalFunction(wx.XOR)
+        #dc.SetBrush(wx.TRANSPARENT_BRUSH)
+        #dc.SetLogicalFunction(wx.XOR)
 
-        r = wx.Rect(self.oldx1, self.oldy1, self.oldx2, self.oldy2)
-        dc.DrawRectangleRect(r)
-        
-        r = wx.Rect(self.x1, self.y1, self.x2, self.y2)
-        dc.DrawRectangleRect(r)
+        print 'drawing', self.x1, self.y1, self.x2, self.y2
+        # r = wx.Rect(self.x1, self.y1, self.x2, self.y2)
+        # dc.DrawRectangleRect(r)
+        self.draw_rect(dc, (self.x1, self.y1, self.x2, self.y2))
 
         self.oldx1, self.oldx2, self.oldy1, self.oldy2 = copy.copy((
             self.x1, self.x2, self.y1, self.y2))
@@ -585,7 +649,8 @@ class Im():
         self.original_image = Image.new('RGB', (100, 200), (255, 255, 255))
 
         self.frame = parent
-
+ 
+        self.width = 0; self.height = 0
         self.zoomframe = (0, 0, 0, 0)
         self.ZOOMSTEP = 1.1
         self.SHIFTZOOMSTEP = 5
