@@ -452,8 +452,8 @@ class ThumbnailCanvas(DisplayCanvas):
         self.resizedimage = self.frame.im.original_image.copy()
         self.resizedimage.thumbnail((self.width, self.height), Image.NEAREST)
         self.resized_width, self.resized_height = self.resizedimage.size
-        self.xoffset = (self.width-self.resized_width)/2
-        self.yoffset = (self.height-self.resized_height)/2
+        self.xoffset = int((self.width-self.resized_width)/2)
+        self.yoffset = int((self.height-self.resized_height)/2)
         
         # blit the image centerd in x and y axes
         self.bmp = self.image_to_bitmap(self.resizedimage)
@@ -485,11 +485,41 @@ class ThumbnailCanvas(DisplayCanvas):
             if self.startdrag:
                 self.currx, self.curry = event.GetPosition()
 
-                self.x1 = self.relative_x1 + self.currx
-                self.x2 = self.relative_x2 + self.currx
-                self.y1 = self.relative_y1 + self.curry
-                self.y2 = self.relative_y2 + self.curry
+                x1 = self.relative_x1 + self.currx
+                x2 = self.relative_x2 + self.currx
+                y1 = self.relative_y1 + self.curry
+                y2 = self.relative_y2 + self.curry
 
+                # if frame is extending beyond limits,
+                # dont update frame params
+                if x1 < self.xoffset or\
+                   y1 < self.yoffset or\
+                   x2 > self.xoffset + self.resized_width or\
+                   y2 > self.yoffset + self.resized_height:
+                    print 'out of frame'
+                    return
+
+                else:
+                    (self.x1, self.y1, self.x2, self.y2) = copy.deepcopy(
+                        (x1, y1, x2, y2))
+                # # todo : maybe dont redraw at all in edge cases
+                # if self.x1 < self.xoffset:
+                #     self.x2 += self.xoffset - self.x1
+                #     self.x1 = self.xoffset
+
+                # if self.y1 < self.yoffset:
+                #     self.y2 += self.yoffset - self.y1
+                #     self.y1 = self.yoffset
+
+                # if self.x2 > self.xoffset + self.resized_width:
+                #     self.x1 -= self.x2 - self.resized_width - self.xoffset
+                #     self.x2 = self.resized_width + self.xoffset
+
+                # if self.y2 > self.yoffset + self.resized_height:
+                #     self.y1 -= self.y2 - self.resized_height - self.yoffset
+                #     self.y2 = self.resized_height + self.yoffset
+                    
+                
                 self.frame.im.zoomframe = self.reverse_translate_frame()
                 self.frame.canvas.NEEDREDRAW = True
                 self.NEEDREDRAW = True
@@ -545,6 +575,7 @@ class ThumbnailCanvas(DisplayCanvas):
               self.frame.im.height / self.resized_height)
         y2 = (self.y2 - self.yoffset) * (
               self.frame.im.height / self.resized_height)
+
         return (x1, y1, x2, y2)
         
     def draw_rect(self, dc, coords):
@@ -600,8 +631,7 @@ class SeriesPreview():
                 self.im_list.append(Image.open(tb_file))
             else:
                 try:
-                    self.im_list.append(Image.open(self.filename))
-                    print 'opened image instead of th umbnail'
+                    self.im_list.append(Image.open(filename))
                 except:
                     self.im_list.append(self.blankimage)
 
