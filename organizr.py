@@ -12,6 +12,7 @@ import time
 import md5
 import sys
 import copy
+import yaml
 
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
@@ -610,8 +611,25 @@ class ActionList(wx.Dialog):
         self.editbutton = wx.Button(self.controlpanel, -1, 'Edit')
 
         self.__do_layout()
-        self.populate()
 
+        self.actionlist = []
+        self.commands = {}
+        
+        self.configfile = os.path.expanduser('~/.organizr_actions')
+        self.readconfigfile()
+        self.load_actions()
+        print self.commands
+
+    def readconfigfile(self):
+        """read the actions from the file"""
+        fi = open(self.configfile, 'r')
+        action_dict = yaml.load(fi)
+        self.actionlist = []
+        for actionname in sorted(action_dict.keys()):
+            self.actionlist.append((actionname,
+                                    action_dict[actionname]['key'],
+                                    action_dict[actionname]['action']))
+        
     def __do_layout(self):
         """"""
         mainsizer = wx.BoxSizer(wx.VERTICAL)
@@ -633,15 +651,17 @@ class ActionList(wx.Dialog):
         self.Layout()
         self.SetSize((300, 400))
 
-    def populate(self):
-        """populate the action list by reading from a file"""
-        test_actions = [
-            ('r', 'Remove Raw', 'mv %f /tmp'),
-            ('j', 'Remove image', 'mv %F /tmp')]
-        for action in test_actions:
-            index = self.playlistctrl.InsertStringItem(sys.maxint, action[0])
-            self.playlistctrl.SetStringItem(index, 1, action[1])
-
+    def load_actions(self):
+        """load the actions that have been read in"""
+        # make command list with substitutions
+        for action in self.actionlist:
+            self.commands[action[1]] = action[2]
+        
+        # populate the list control
+        for action in self.actionlist:
+            index = self.playlistctrl.InsertStringItem(sys.maxint, action[1])
+            self.playlistctrl.SetStringItem(index, 1, action[0])
+        
         
 class SeriesPreview():
     """A composite image made of thumbnails from all playlist images.
