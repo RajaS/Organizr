@@ -13,7 +13,6 @@ import md5
 import sys
 import copy
 import yaml
-import re
 
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
@@ -619,20 +618,14 @@ class ActionList(wx.Dialog):
 
         self.actionlist = []
         self.commands = {}
-        self.replacements = [('%f',
-           os.path.splitext(self.frame.playlist[self.frame.nowshowing])[0]),
-                             ('%F',
-             self.frame.playlist[self.frame.nowshowing]),
-                             ('%t',
-             self.frame.trash_folder)]
+
         
         self.configfile = os.path.expanduser('~/.organizr_actions')
         self.readconfigfile()
         self.load_actions()
 
-        self.Bind(wx.EVT_KEY_DOWN, self.process_key)
-        self.SetFocus()
-
+        self.playlistctrl.Bind(wx.EVT_KEY_DOWN, self.process_key)
+        self.playlistctrl.SetFocus()
 
     def readconfigfile(self):
         """read the actions from the file"""
@@ -648,17 +641,31 @@ class ActionList(wx.Dialog):
         """read in a key,
         if key is in commands, perform the necessary command
         with substitutions"""
-        print 'key pressed'
-        key = ord(event.GetKeyCode()).lower()
-        print key
-        cmd = self.commands[key]
+        self.replacements = [('%f',
+           os.path.splitext(self.frame.playlist[self.frame.nowshowing])[0]),
+                             ('%F',
+             self.frame.playlist[self.frame.nowshowing]),
+                             ('%t',
+             self.frame.trash_folder)]
 
-        #pattern = re.compile('%[a-zA-Z]{1}')
-        #command_string = re.sub(pattern, '%s', cmd)
-        #command_vars = re.findall(pattern, cmd)
+        # escape closes dialog
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            print 'esc key pressed'
+            self.EndModal(0)
+            return
+            
+        key = chr(event.GetKeyCode()).lower()
+        print 'key pressed'
+        print key
+        try:
+            cmd = self.commands[key]
+        except KeyError:
+            self.frame.SetStatusText('%s key not defined' %(key), 1)
+            return
+            
         for rep in self.replacements:
             cmd = cmd.replace(rep[0], rep[1])
-        
+            self.EndModal(0)
         print 'command - ', cmd
             
     def __do_layout(self):
