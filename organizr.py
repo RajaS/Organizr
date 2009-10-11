@@ -13,6 +13,7 @@ import md5
 import sys
 import copy
 import yaml
+import re
 
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
@@ -134,6 +135,9 @@ class MainFrame(wx.Frame):
         self.im = Im(self) 
         self.preview = SeriesPreview(self, [])
         self.tb_file = None # filename for thumbnail
+        self.playlist = ['']
+        self.nowshowing = 0
+        self.trash_folder = '/data/tmp/organizr_trash'
         
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
@@ -598,6 +602,7 @@ class ActionList(wx.Dialog):
         shell commands to be run on the file or the current
         selection of files"""
         wx.Dialog.__init__(self, parent)
+        self.frame = parent
         self.listpanel = wx.Panel(self, -1, style=wx.SUNKEN_BORDER)
         self.controlpanel = wx.Panel(self, -1, style=wx.SUNKEN_BORDER|
                                     wx.TAB_TRAVERSAL)
@@ -614,11 +619,20 @@ class ActionList(wx.Dialog):
 
         self.actionlist = []
         self.commands = {}
+        self.replacements = [('%f',
+           os.path.splitext(self.frame.playlist[self.frame.nowshowing])[0]),
+                             ('%F',
+             self.frame.playlist[self.frame.nowshowing]),
+                             ('%t',
+             self.frame.trash_folder)]
         
         self.configfile = os.path.expanduser('~/.organizr_actions')
         self.readconfigfile()
         self.load_actions()
-        print self.commands
+
+        self.Bind(wx.EVT_KEY_DOWN, self.process_key)
+        self.SetFocus()
+
 
     def readconfigfile(self):
         """read the actions from the file"""
@@ -629,7 +643,24 @@ class ActionList(wx.Dialog):
             self.actionlist.append((actionname,
                                     action_dict[actionname]['key'],
                                     action_dict[actionname]['action']))
+
+    def process_key(self, event):
+        """read in a key,
+        if key is in commands, perform the necessary command
+        with substitutions"""
+        print 'key pressed'
+        key = ord(event.GetKeyCode()).lower()
+        print key
+        cmd = self.commands[key]
+
+        #pattern = re.compile('%[a-zA-Z]{1}')
+        #command_string = re.sub(pattern, '%s', cmd)
+        #command_vars = re.findall(pattern, cmd)
+        for rep in self.replacements:
+            cmd = cmd.replace(rep[0], rep[1])
         
+        print 'command - ', cmd
+            
     def __do_layout(self):
         """"""
         mainsizer = wx.BoxSizer(wx.VERTICAL)
