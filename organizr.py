@@ -211,6 +211,7 @@ class MainFrame(wx.Frame):
             self.filepath = dlg.GetPath()
             self.CURRENT_DIR = os.path.dirname(self.filepath)
             self.create_playlist()
+            self.nowshowing = self.playlist.index(self.filepath)
             self.load_new()
         else:
             return
@@ -248,7 +249,15 @@ class MainFrame(wx.Frame):
     def load_new(self):
         """common things to do when a new image is loaded"""
         # get and display exif info
-        self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
+        try:
+            self.exifinfo = ExifInfo(open
+                                     (self.playlist[self.nowshowing], 'r'))
+        # catch if file was deleted
+        except IOError:
+            self.create_playlist()
+            self.exifinfo = ExifInfo(open
+                                     (self.playlist[self.nowshowing], 'r'))
+            
         self.exifpanel.DeleteAllItems()
         for info in self.exifinfo.exif_info_list:
             index = self.exifpanel.InsertStringItem(sys.maxint, info[0])
@@ -299,7 +308,6 @@ class MainFrame(wx.Frame):
                                         '.jpg', '.jpeg', '.tif', '.tiff']:
                 self.playlist.append(os.path.join(dirname, eachfile))
         self.playlist.sort()
-        self.nowshowing = self.playlist.index(self.filepath)
 
         
 class DisplayCanvas(wx.Panel):
@@ -651,13 +659,10 @@ class ActionList(wx.Dialog):
 
         # escape closes dialog
         if event.GetKeyCode() == wx.WXK_ESCAPE:
-            print 'esc key pressed'
             self.EndModal(0)
             return
             
         key = chr(event.GetKeyCode()).lower()
-        print 'key pressed'
-        print key
         try:
             cmd = self.commands[key]
         except KeyError:
@@ -667,11 +672,9 @@ class ActionList(wx.Dialog):
         for rep in self.replacements:
             cmd = cmd.replace(rep[0], rep[1])
         st, output = commands.getstatusoutput(cmd)
-        print st, output
         if st != 0:
             self.frame.SetStatusText('Failed - %s' %(output),1)
         self.EndModal(0)
-        print 'command - ', cmd
             
     def __do_layout(self):
         """"""
@@ -807,7 +810,10 @@ class Im():
         
         self.frame.canvas.NEEDREDRAW = True
         self.frame.thumbnailpanel.NEEDREDRAW = True
-        self.frame.SetStatusText(os.path.basename(filepath))
+        status_string = os.path.basename(filepath)
+        if os.path.exists(os.path.splitext(filepath)[0] + '.CR2'):
+            status_string += ' : RAW+'
+        self.frame.SetStatusText(status_string)
 
     def load_multiple(self):
         """Load a list of images and construct a composite image"""
