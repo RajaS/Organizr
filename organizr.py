@@ -13,6 +13,7 @@ import md5
 import sys
 import copy
 import yaml
+import commands
 
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
@@ -136,7 +137,7 @@ class MainFrame(wx.Frame):
         self.tb_file = None # filename for thumbnail
         self.playlist = ['']
         self.nowshowing = 0
-        self.trash_folder = '/data/tmp/organizr_trash'
+        self.trash_folder = '/data/tmp/organizr_trash/'
         
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
@@ -665,7 +666,11 @@ class ActionList(wx.Dialog):
             
         for rep in self.replacements:
             cmd = cmd.replace(rep[0], rep[1])
-            self.EndModal(0)
+        st, output = commands.getstatusoutput(cmd)
+        print st, output
+        if st != 0:
+            self.frame.SetStatusText('Failed - %s' %(output),1)
+        self.EndModal(0)
         print 'command - ', cmd
             
     def __do_layout(self):
