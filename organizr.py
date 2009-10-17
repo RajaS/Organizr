@@ -12,6 +12,8 @@ import time
 import md5
 import sys
 import copy
+import yaml
+import commands
 
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
@@ -19,6 +21,7 @@ import Exifreader
 
 #########################
 # TODO:
+#  - Fix zoom and display of zoom frame in thumbnail
 #  - Get exif information for all files in playlist
 #  - Allow custom sort of files
 ##########################
@@ -99,7 +102,8 @@ class MainFrame(wx.Frame):
 
         # first split - playlist on top
         self.bottompanel = wx.Panel(self, -1)
-        self.playlistcanvas = PlayListCanvas(self) 
+        self.playlistcanvas = PlayListCanvas(self)
+        self.actionlist = ActionList(self)
 
         # next split the bottom panel into canvas and sidepanel
         self.vertical_splitter = wx.SplitterWindow(self.bottompanel, -1,
@@ -126,13 +130,14 @@ class MainFrame(wx.Frame):
         self.CURRENT_DIR = os.path.expanduser('~')
         self.WRAPON = True # wrap around in playlist
         self.AUTOROTATE = True # automatically rotate images
-        self.playlist = []
-        self.double_playlist = []
         # need to have these ready before imagecanvas and
         # thumbnail canvas are initialized
         self.im = Im(self) 
-        self.preview = SeriesPreview(self, 0, 0)
+        self.preview = SeriesPreview(self, [])
         self.tb_file = None # filename for thumbnail
+        self.playlist = ['']
+        self.nowshowing = 0
+        self.trash_folder = '/data/tmp/organizr_trash/'
         
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
@@ -206,6 +211,7 @@ class MainFrame(wx.Frame):
             self.filepath = dlg.GetPath()
             self.CURRENT_DIR = os.path.dirname(self.filepath)
             self.create_playlist()
+            self.nowshowing = self.playlist.index(self.filepath)
             self.load_new()
         else:
             return
@@ -243,14 +249,23 @@ class MainFrame(wx.Frame):
     def load_new(self):
         """common things to do when a new image is loaded"""
         # get and display exif info
-        self.exifinfo = ExifInfo(open(self.playlist[self.nowshowing], 'r'))
+        try:
+            self.exifinfo = ExifInfo(open
+                                     (self.playlist[self.nowshowing], 'r'))
+        # catch if file was deleted
+        except IOError:
+            self.create_playlist()
+            self.exifinfo = ExifInfo(open
+                                     (self.playlist[self.nowshowing], 'r'))
+            
         self.exifpanel.DeleteAllItems()
         for info in self.exifinfo.exif_info_list:
             index = self.exifpanel.InsertStringItem(sys.maxint, info[0])
             self.exifpanel.SetStringItem(index, 1, info[1])
 
         # display thumbnails preview
-        self.preview  = SeriesPreview(self, self.nowshowing-3, self.nowshowing+4)
+        self.preview  = SeriesPreview(self, self.playlist[
+                        self.nowshowing-3:self.nowshowing+4])
         self.playlistcanvas.NEEDREDRAW = True
 
         # load and display image and thumbnail
@@ -274,6 +289,8 @@ class MainFrame(wx.Frame):
             self.im.no_zoom(event)
         elif keycode in [314, 315, 316, 317]: #arrow keys
             self.im.shift_zoom_frame(event)
+        elif keycode == 65: # 'a'
+            self.actionlist.ShowModal()
         else:
             print 'key pressed - ', keycode
         
@@ -291,10 +308,6 @@ class MainFrame(wx.Frame):
                                         '.jpg', '.jpeg', '.tif', '.tiff']:
                 self.playlist.append(os.path.join(dirname, eachfile))
         self.playlist.sort()
-        # maintain a duplicate list to allow rotation
-        self.double_playlist = self.playlist * 2
-        
-        self.nowshowing = self.playlist.index(self.filepath)
 
         
 class DisplayCanvas(wx.Panel):
@@ -403,6 +416,7 @@ class PlayListCanvas(DisplayCanvas):
     def __init__(self, parent):
         DisplayCanvas.__init__(self, parent, style=wx.RAISED_BORDER)
         self.frame = wx.GetTopLevelParent(self)
+        self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse_events)
         
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
@@ -410,7 +424,6 @@ class PlayListCanvas(DisplayCanvas):
         imagewidth, imageheight = image.size
 
         self.get_resize_params(imagewidth, imageheight)
-        
         self.resizedimage = image.resize((self.resized_width,
                                           self.resized_height)
                                              , Image.ANTIALIAS)
@@ -424,11 +437,21 @@ class PlayListCanvas(DisplayCanvas):
         """Redraw the image"""
         self.resize_image()
         # blit the buffer on to the screen
-        #w, h = self.frame.preview.composite.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
-        
+
+    def on_mouse_events(self, event):
+        """catch mouse clicks and jump to corresponding image"""
+        if event.LeftDown():
+            x,y = event.GetPosition()
+            pos = int((x - self.xoffset) / (self.resized_width / 7))
+            relative_pos = pos - 3
+            if relative_pos != 0:
+                self.frame.nowshowing += relative_pos
+                self.frame.load_new()
+        else:
+            pass
         
 class ThumbnailCanvas(DisplayCanvas):
     """panel where the thumbnail image is displayed
@@ -443,17 +466,20 @@ class ThumbnailCanvas(DisplayCanvas):
 
         self.oldx1 = 0; self.oldx2 = 0
         self.oldy1 = 0; self.oldy2 = 0
+        self.xoffset = 0; self.yoffset = 0
+        self.resized_height = 0; self.resized_width = 0
         self.NEEDREDRAWFRAME = False
         self.startdrag = False
         self.firstdraw = True
+
         
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
         self.resizedimage = self.frame.im.original_image.copy()
         self.resizedimage.thumbnail((self.width, self.height), Image.NEAREST)
         self.resized_width, self.resized_height = self.resizedimage.size
-        self.xoffset = (self.width-self.resized_width)/2
-        self.yoffset = (self.height-self.resized_height)/2
+        self.xoffset = int((self.width-self.resized_width)/2)
+        self.yoffset = int((self.height-self.resized_height)/2)
         
         # blit the image centerd in x and y axes
         self.bmp = self.image_to_bitmap(self.resizedimage)
@@ -473,69 +499,90 @@ class ThumbnailCanvas(DisplayCanvas):
         elif event.LeftDown() and not self.startdrag:
             self.startdrag = True
             self.startx, self.starty = x, y
-            print 'start drag at', x, y
-                
+            self.relative_x1 = self.x1 - self.startx
+            self.relative_x2 = self.x2 - self.startx
+            self.relative_y1 = self.y1 - self.starty
+            self.relative_y2 = self.y2 - self.starty
+
         elif event.Dragging() and event.LeftIsDown():
             if not in_rectangle((x,y), (self.x1, self.y1, self.x2, self.y2)):
                 return
                 
             if self.startdrag:
                 self.currx, self.curry = event.GetPosition()
-                self.x1 += self.currx - self.startx
-                self.x2 += self.currx - self.startx
-                self.y1 += self.curry - self.starty
-                self.y2 += self.curry - self.starty
 
-                self.startx = self.currx
-                self.starty = self.starty
+                x1 = self.relative_x1 + self.currx
+                x2 = self.relative_x2 + self.currx
+                y1 = self.relative_y1 + self.curry
+                y2 = self.relative_y2 + self.curry
 
-                # dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
-                #                wx.BUFFER_CLIENT_AREA)
-                # self.NEEDREDRAWFRAME = True
+                # if frame is extending beyond limits,
+                # dont update frame params
+                if x1 < self.xoffset or\
+                   y1 < self.yoffset or\
+                   x2 > self.xoffset + self.resized_width or\
+                   y2 > self.yoffset + self.resized_height:
+                    return
+
+                else:
+                    (self.x1, self.y1, self.x2, self.y2) = copy.deepcopy(
+                        (x1, y1, x2, y2))
+                
                 self.frame.im.zoomframe = self.reverse_translate_frame()
                 self.frame.canvas.NEEDREDRAW = True
                 self.NEEDREDRAW = True
                 self.NEEDREDRAWFRAME = True
-                #self.frame.canvas.draw()
-                #self.draw()
-                #self.draw_frame
 
         elif event.LeftUp():
             if self.startdrag:
-                print event.GetPosition()
-                print 'stopping drag'
                 self.startdrag = False
         
     def draw(self, dc):
         """Redraw the image"""
-        print 'drawing thumbnail'
+        # update thumbnail frame coords
+        # if we are dragging on thumbnail frame,
+        # update the canvas zoom offset
+        if self.startdrag:
+            self.frame.im.zoomframe = self.reverse_translate_frame()
+            self.frame.im.image = self.frame.im.original_image.crop(
+                self.frame.im.zoomframe)
+        
         self.resize_image()
         # blit the buffer on to the screen
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
 
-        if self.startdrag:
-            self.translate_frame() #update self.x1 to self.y2
-        self.draw_frame(dc)
+        if not self.startdrag:
+            self.translate_frame() 
             
+        self.draw_frame(dc)
         self.NEEDREDRAW = False
 
     def translate_frame(self):
         """get the zoomframe of the image and translate into
         frame to be drawn over the thumbnail"""
         x1, y1, x2, y2 = self.frame.im.zoomframe
-        self.x1 = int(self.xoffset + x1 * (self.resized_width / self.frame.im.width))
-        self.x2 = int(self.xoffset + x2 * (self.resized_width / self.frame.im.width))
-        self.y1 = int(self.yoffset + y1 * (self.resized_height / self.frame.im.height))
-        self.y2 = int(self.yoffset + y2 * (self.resized_height / self.frame.im.height))
+        self.x1 = int(self.xoffset + x1 *
+                      (self.resized_width / self.frame.im.width))
+        self.x2 = int(self.xoffset + x2 *
+                      (self.resized_width / self.frame.im.width))
+        self.y1 = int(self.yoffset + y1 *
+                      (self.resized_height / self.frame.im.height))
+        self.y2 = int(self.yoffset + y2 *
+                      (self.resized_height / self.frame.im.height))
         
     def reverse_translate_frame(self):
         """given thumbnails frame, calculate zoomframe for the image"""
-        x1 = (self.x1 - self.xoffset) * (self.frame.im.width / self.resized_width)
-        x2 = (self.x2 - self.xoffset) * (self.frame.im.width / self.resized_width)
-        y1 = (self.y1 - self.yoffset) * (self.frame.im.height / self.resized_height)
-        y2 = (self.y2 - self.yoffset) * (self.frame.im.height / self.resized_height)
+        x1 = (self.x1 - self.xoffset) * (
+              self.frame.im.width / self.resized_width)
+        x2 = (self.x2 - self.xoffset) * (
+              self.frame.im.width / self.resized_width)
+        y1 = (self.y1 - self.yoffset) * (
+              self.frame.im.height / self.resized_height)
+        y2 = (self.y2 - self.yoffset) * (
+              self.frame.im.height / self.resized_height)
+
         return (x1, y1, x2, y2)
         
     def draw_rect(self, dc, coords):
@@ -551,26 +598,124 @@ class ThumbnailCanvas(DisplayCanvas):
     def draw_frame(self, dc):
         """draw the zoomframe"""
         dc.SetPen(self.pen)
-        #dc.SetBrush(wx.TRANSPARENT_BRUSH)
-        #dc.SetLogicalFunction(wx.XOR)
-
-        print 'drawing', self.x1, self.y1, self.x2, self.y2
-        # r = wx.Rect(self.x1, self.y1, self.x2, self.y2)
-        # dc.DrawRectangleRect(r)
         self.draw_rect(dc, (self.x1, self.y1, self.x2, self.y2))
 
         self.oldx1, self.oldx2, self.oldy1, self.oldy2 = copy.copy((
             self.x1, self.x2, self.y1, self.y2))
+
+        
+class ActionList(wx.Dialog):
+    def __init__(self, parent):
+        """presents a list of available actions that are
+        shell commands to be run on the file or the current
+        selection of files"""
+        wx.Dialog.__init__(self, parent)
+        self.frame = parent
+        self.listpanel = wx.Panel(self, -1, style=wx.SUNKEN_BORDER)
+        self.controlpanel = wx.Panel(self, -1, style=wx.SUNKEN_BORDER|
+                                    wx.TAB_TRAVERSAL)
+        self.playlistctrl = wx.ListCtrl(self.listpanel, -1,
+                            style=wx.LC_REPORT|wx.LC_SINGLE_SEL | wx.SUNKEN_BORDER)
+        self.playlistctrl.InsertColumn(0, "Key", width=100)
+        self.playlistctrl.InsertColumn(1, "Action", width=180)
+        
+        self.addbutton = wx.Button(self.controlpanel, -1, 'Add')
+        self.removebutton = wx.Button(self.controlpanel, -1, 'Remove')
+        self.editbutton = wx.Button(self.controlpanel, -1, 'Edit')
+
+        self.__do_layout()
+
+        self.actionlist = []
+        self.commands = {}
+
+        
+        self.configfile = os.path.expanduser('~/.organizr_actions')
+        self.readconfigfile()
+        self.load_actions()
+
+        self.playlistctrl.Bind(wx.EVT_KEY_DOWN, self.process_key)
+        self.playlistctrl.SetFocus()
+
+    def readconfigfile(self):
+        """read the actions from the file"""
+        fi = open(self.configfile, 'r')
+        action_dict = yaml.load(fi)
+        self.actionlist = []
+        for actionname in sorted(action_dict.keys()):
+            self.actionlist.append((actionname,
+                                    action_dict[actionname]['key'],
+                                    action_dict[actionname]['action']))
+
+    def process_key(self, event):
+        """read in a key,
+        if key is in commands, perform the necessary command
+        with substitutions"""
+        self.replacements = [('%f',
+           os.path.splitext(self.frame.playlist[self.frame.nowshowing])[0]),
+                             ('%F',
+             self.frame.playlist[self.frame.nowshowing]),
+                             ('%t',
+             self.frame.trash_folder)]
+
+        # escape closes dialog
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.EndModal(0)
+            return
+            
+        key = chr(event.GetKeyCode()).lower()
+        try:
+            cmd = self.commands[key]
+        except KeyError:
+            self.frame.SetStatusText('%s key not defined' %(key), 1)
+            return
+            
+        for rep in self.replacements:
+            cmd = cmd.replace(rep[0], rep[1])
+        st, output = commands.getstatusoutput(cmd)
+        if st != 0:
+            self.frame.SetStatusText('Failed - %s' %(output),1)
+        self.EndModal(0)
+            
+    def __do_layout(self):
+        """"""
+        mainsizer = wx.BoxSizer(wx.VERTICAL)
+        controlsizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_1 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_1.Add(self.playlistctrl, 1, wx.EXPAND, 0)
+        self.listpanel.SetSizer(sizer_1)
+        mainsizer.Add(self.listpanel, 5, wx.ALL|wx.EXPAND, 2)
+        
+        controlsizer.Add(self.addbutton, 1, wx.ALIGN_CENTER_VERTICAL, 0)
+        controlsizer.Add(self.removebutton, 1, wx.ALIGN_CENTER_VERTICAL, 0)
+        controlsizer.Add(self.editbutton, 1, wx.ALIGN_CENTER_VERTICAL, 0)
+
+        self.controlpanel.SetSizer(controlsizer)
+        mainsizer.Add(self.controlpanel, 1, wx.LEFT|wx.RIGHT|wx.BOTTOM|
+                      wx.EXPAND, 2)
+        self.SetSizer(mainsizer)
+        mainsizer.Fit(self)
+        self.Layout()
+        self.SetSize((300, 400))
+
+    def load_actions(self):
+        """load the actions that have been read in"""
+        # make command list with substitutions
+        for action in self.actionlist:
+            self.commands[action[1]] = action[2]
+        
+        # populate the list control
+        for action in self.actionlist:
+            index = self.playlistctrl.InsertStringItem(sys.maxint, action[1])
+            self.playlistctrl.SetStringItem(index, 1, action[0])
+        
         
 class SeriesPreview():
     """A composite image made of thumbnails from all playlist images.
     Should be triggered by opening a new file"""
-    def __init__(self, parent, start, end):
-        """start and end are the indices of files in the playlist"""
-        # add 7 and take files from the double list
+    def __init__(self, parent, imagelist):
+        # imagelist is list of filenames to load
+        self.filenames = imagelist
         self.frame = parent
-        self.filenames = self.frame.double_playlist[
-            start+len(self.frame.playlist):end+len(self.frame.playlist)]
         
         if len(self.filenames) == 0:
             self.composite = Image.new('RGB', (800, 100), (255, 255, 255))
@@ -583,7 +728,6 @@ class SeriesPreview():
                                       self.tn_size + 10), (255, 255, 255))
             self.build_composite()
 
-            
     def build_composite(self):
         """Build a composite image with thumbnails of the images."""
         self.im_list = []
@@ -594,8 +738,7 @@ class SeriesPreview():
                 self.im_list.append(Image.open(tb_file))
             else:
                 try:
-                    self.im_list.append(Image.open(self.filename))
-                    print 'opened image instead of th umbnail'
+                    self.im_list.append(Image.open(filename))
                 except:
                     self.im_list.append(self.blankimage)
 
@@ -632,7 +775,8 @@ class Im():
         self.original_image = Image.new('RGB', (100, 200), (255, 255, 255))
 
         self.frame = parent
-
+ 
+        self.width = 1; self.height = 1
         self.zoomframe = (0, 0, 0, 0)
         self.ZOOMSTEP = 1.1
         self.SHIFTZOOMSTEP = 5
@@ -666,7 +810,10 @@ class Im():
         
         self.frame.canvas.NEEDREDRAW = True
         self.frame.thumbnailpanel.NEEDREDRAW = True
-        self.frame.SetStatusText(os.path.basename(filepath))
+        status_string = os.path.basename(filepath)
+        if os.path.exists(os.path.splitext(filepath)[0] + '.CR2'):
+            status_string += ' : RAW+'
+        self.frame.SetStatusText(status_string)
 
     def load_multiple(self):
         """Load a list of images and construct a composite image"""
@@ -685,15 +832,15 @@ class Im():
         frame = []
         newwidth = self.width / scale
         newheight = self.height / scale
-        
-        if not self.zoom_xoffset:
+
+        if self.zoom_xoffset == None:
             # the zoom frame is centered
             self.zoom_xoffset = (self.width - newwidth) / 2
         else:
             self.zoom_xoffset = min(self.zoom_xoffset,
                                     self.width - newwidth)
 
-        if not self.zoom_yoffset:
+        if self.zoom_yoffset == None:
             self.zoom_yoffset = (self.height - newheight) / 2
         else:
             self.zoom_yoffset = min(self.zoom_yoffset,
@@ -764,7 +911,6 @@ class ExifInfo():
         self.read_exif_info()
         self.info = self.process_exif_info()
         self.exif_info_list = self.info_list()
-        #print self.exif_info_list
         
     def read_exif_info(self):
         """read the exif information"""
