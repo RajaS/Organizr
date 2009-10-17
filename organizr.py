@@ -264,8 +264,16 @@ class MainFrame(wx.Frame):
             self.exifpanel.SetStringItem(index, 1, info[1])
 
         # display thumbnails preview
-        self.preview  = SeriesPreview(self, self.playlist[
-                        self.nowshowing-3:self.nowshowing+4])
+        preview_start = self.nowshowing - 3
+        preview_end = self.nowshowing + 4
+        if preview_start < 0:
+            preview_files = self.playlist[
+                preview_start:] + self.playlist[:preview_end]
+        else:
+            preview_files = self.playlist[
+                preview_start:preview_end]
+        
+        self.preview  = SeriesPreview(self, preview_files)
         self.playlistcanvas.NEEDREDRAW = True
 
         # load and display image and thumbnail
