@@ -248,22 +248,29 @@ class MainFrame(wx.Frame):
                 
     def load_new(self):
         """common things to do when a new image is loaded"""
+        # recreate playlist for every new file
+        # TODO: not optimal to recreate each time
+        self.filepath = self.playlist[self.nowshowing]
+        self.create_playlist()
+        self.nowshowing = self.playlist.index(self.filepath)
         # get and display exif info
-        try:
-            self.exifinfo = ExifInfo(open
-                                     (self.playlist[self.nowshowing], 'r'))
-        # catch if file was deleted
-        except IOError:
-            self.create_playlist()
-            self.exifinfo = ExifInfo(open
-                                     (self.playlist[self.nowshowing], 'r'))
-            
+        # try:
+        #     self.exifinfo = ExifInfo(open
+        #                              (self.playlist[self.nowshowing], 'r'))
+        # # catch if file was deleted
+        # except IOError:
+        #     self.create_playlist()
+        #     self.exifinfo = ExifInfo(open
+        #                              (self.playlist[self.nowshowing], 'r'))
+        self.exifinfo = ExifInfo(open
+                                 (self.playlist[self.nowshowing], 'r'))
         self.exifpanel.DeleteAllItems()
         for info in self.exifinfo.exif_info_list:
             index = self.exifpanel.InsertStringItem(sys.maxint, info[0])
             self.exifpanel.SetStringItem(index, 1, info[1])
 
-        # display thumbnails preview
+        # display thumbnails preview.
+        # Handle negative indices for slicing
         preview_start = self.nowshowing - 3
         preview_end = self.nowshowing + 4
         if preview_start < 0:
@@ -813,6 +820,7 @@ class Im():
         self.zoom_xoffset = None
         self.zoom_yoffset = None
         self.zoom_ratio = 1
+        self.zoomframe = (0, 0, 0, 0)
         # on loading, there is no zoom
         self.image = self.original_image
         
