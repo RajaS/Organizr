@@ -237,7 +237,7 @@ class MainFrame(wx.Frame):
         self.nowshowing -= 1
         if self.nowshowing < 0:
             if self.WRAPON:
-                self.nowshowing = len(self.playlist) - 1
+                self.nowshowing = len(self.playlist)-1
                 self.SetStatusText('Wrapping to end', 2)
 
             else:
@@ -276,6 +276,9 @@ class MainFrame(wx.Frame):
         if preview_start < 0:
             preview_files = self.playlist[
                 preview_start:] + self.playlist[:preview_end]
+        elif preview_end > len(self.playlist) - 1:
+            preview_files = self.playlist[
+                preview_start:] + self.playlist[:preview_end-len(self.playlist)]
         else:
             preview_files = self.playlist[
                 preview_start:preview_end]
