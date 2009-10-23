@@ -18,7 +18,7 @@ import commands
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 import Exifreader
-
+import overview
 #########################
 # TODO:
 #  - Fix zoom and display of zoom frame in thumbnail
@@ -33,6 +33,8 @@ ID_PREV = wx.NewId()
 ID_NEXT = wx.NewId()
 ID_ZOOMIN = wx.NewId()
 ID_ZOOMOUT = wx.NewId()
+ID_COMPOSITE = wx.NewId()
+
 
 # utility functions
 def reduce_fraction(fraction_string):
@@ -130,6 +132,7 @@ class MainFrame(wx.Frame):
         self.CURRENT_DIR = os.path.expanduser('~')
         self.WRAPON = True # wrap around in playlist
         self.AUTOROTATE = True # automatically rotate images
+        self.COMPOSITE_SELECTED = False
         # need to have these ready before imagecanvas and
         # thumbnail canvas are initialized
         self.im = Im(self) 
@@ -181,6 +184,7 @@ class MainFrame(wx.Frame):
         view_menu = wx.Menu()
         view_menu.Append(ID_ZOOMIN, "Zoomin", "Zoom in")
         view_menu.Append(ID_ZOOMOUT, "Zoomout", "Zoom out")
+        view_menu.Append(ID_COMPOSITE, "Composite", "View Composite")
 
         menubar.Append(file_menu, "&File")
         menubar.Append(edit_menu, "&Edit")
@@ -193,7 +197,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.onnext, id=ID_NEXT)
         self.Bind(wx.EVT_MENU, self.im.zoom_in, id=ID_ZOOMIN)
         self.Bind(wx.EVT_MENU, self.im.zoom_out, id=ID_ZOOMOUT)
-
+        self.Bind(wx.EVT_MENU, self.view_composite, id=ID_COMPOSITE)
+        
         self.canvas.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
         
     def onopen(self, event):
@@ -204,17 +209,25 @@ class MainFrame(wx.Frame):
                           '*.tif;*.tiff;*.TIF;*.TIFF',
                           '*.bmp;*.BMP',
                           '|All files|*.*'])
-
+        
         dlg = wx.FileDialog(self, defaultDir = self.CURRENT_DIR,
                             style=wx.OPEN, wildcard=wildcard)
         if dlg.ShowModal() == wx.ID_OK:
             self.filepath = dlg.GetPath()
             self.CURRENT_DIR = os.path.dirname(self.filepath)
             self.create_playlist()
+            
             self.nowshowing = self.playlist.index(self.filepath)
             self.load_new()
         else:
             return
+
+    def view_composite(self, event):
+        """view a composite images showing all pics in playlist"""
+        self.ov = overview.Overview(self, self.playlist)
+        self.ov.build_composite()
+        self.COMPOSITE_SELECTED = True
+        self.ov.load()
 
     def onnext(self, event):
         """display next image in the playlist.
@@ -253,15 +266,7 @@ class MainFrame(wx.Frame):
         self.filepath = self.playlist[self.nowshowing]
         self.create_playlist()
         self.nowshowing = self.playlist.index(self.filepath)
-        # get and display exif info
-        # try:
-        #     self.exifinfo = ExifInfo(open
-        #                              (self.playlist[self.nowshowing], 'r'))
-        # # catch if file was deleted
-        # except IOError:
-        #     self.create_playlist()
-        #     self.exifinfo = ExifInfo(open
-        #                              (self.playlist[self.nowshowing], 'r'))
+
         self.exifinfo = ExifInfo(open
                                  (self.playlist[self.nowshowing], 'r'))
         self.exifpanel.DeleteAllItems()
@@ -406,7 +411,11 @@ class ImageCanvas(DisplayCanvas):
     
     def resize_image(self):
         """Process the image by resizing to best fit current size"""
-        self.resizedimage = self.frame.im.image.copy()
+        if self.frame.COMPOSITE_SELECTED:
+            self.resizedimage = self.frame.ov.image.copy()
+        else:
+            self.resizedimage = self.frame.im.image.copy()
+
         self.resizedimage.thumbnail((self.width, self.height), Image.NEAREST)
         self.resized_width, self.resized_height = self.resizedimage.size
         self.xoffset = (self.width-self.resized_width)/2
