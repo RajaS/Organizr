@@ -20,11 +20,14 @@ class Overview():
     def build_composite(self):
         """create a composite image using all the images"""
         w,h = self.frame.canvas.GetSize()
+
+        print 'canvas_size', w,h
+        
         num_pics = len(self.playlist)
 
         ratio = ((w*h) / num_pics) ** 0.5
-        rows = w // ratio
-        cols = num_pics // rows
+        cols = w // ratio
+        rows = num_pics // cols
         
         self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size),
                                         (200, 200, 200))
@@ -32,7 +35,6 @@ class Overview():
         self.composite = Image.new('RGB', ((self.tn_size + 10) * cols,
                                            (self.tn_size + 10) * rows),
                                    (255, 255, 255))
-
 
         index = 0
         for r in range(rows):
