@@ -6,26 +6,63 @@ a given range easily using the mouse"""
 # Oct 2009
 
 import wx
+from organizr import DisplayCanvas
 
-class RangeSelector(wx.Panel):
+class RangeSelector(DisplayCanvas):
     """The selector
     """
     def __init__(self, parent, range):
         """
 	"""
-        wx.Panel.__init__(self, parent, -1)
+        DisplayCanvas.__init__(self, parent)
         self.min, self.max = range
 
+        self.subrange_min = 3 #self.min
+        self.subrange_max = 5 #self.max
+
+        self.brush1 = wx.Brush((200, 200, 200), wx.SOLID)
+        self.brush2 = wx.Brush((100, 100, 100), wx.SOLID)
+        self.border = 20
+        
         self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse)
+        self.NEEDREDRAW = True
+        
+    def draw(self, dc):
+        """Draw the range and the selected subrange"""
+        self.border = 20
+        self.panel_width, self.panel_height = self.GetSize()
+        ht = self.panel_height // 10
+        wd = self.panel_width - 2*self.border
 
+        dc.SetBrush(self.brush1)
+        dc.DrawRectangle(self.border, self.panel_height - ht - self.border,
+                         wd, ht)
 
+        dc.DrawText(str(self.min), self.border - 10,
+                    self.panel_height - ht - 2*self.border)
+        dc.DrawText(str(self.max), self.panel_width - self.border,
+                    self.panel_height - ht - 2*self.border)
+
+        dc.SetBrush(self.brush2)
+        dc.DrawRectangle(self.range_to_canvas(self.subrange_min),
+                         self.panel_height - ht - self.border,
+                         self.range_to_canvas(self.subrange_max - self.subrange_min),
+                         ht)
+
+    def range_to_canvas(self, x):
+        """convert a value on the specified range to the x value
+        on the canvas"""
+        # we assume that x is in the supplied range
+        return self.border + (x - self.min) * (
+            (self.panel_width - 2*self.border) / (self.max - self.min))
+        
     def on_mouse(self, event):
         """Handle mouse movements"""
-        if event.Dragging:
+        if event.LeftIsDown() and event.Dragging():
             print event.GetPosition()
 
 def runTest(frame, nb, log):
-    win = RangeSelector(nb, (1,4))
+    win = RangeSelector(nb, (1,10))
     return win
 
 

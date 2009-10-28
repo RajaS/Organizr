@@ -9,7 +9,6 @@ import wx
 import Image
 import ImageDraw
 import time
-import md5
 import sys
 import copy
 import yaml
@@ -17,6 +16,7 @@ import commands
 
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
+from utils import *
 import Exifreader
 import overview
 #########################
@@ -49,27 +49,6 @@ def reduce_fraction(fraction_string):
         reduced_string = '%s' % (fraction_string)
     return reduced_string
 
-def get_thumbnailfile(filename):
-    """for any image filename, find the stored thumbnail.
-    As per free desktop specifications, this is stored in
-    the .thumbnails dir in the home directory"""
-    file_hash = md5.new('file://'+filename).hexdigest()
-    tb_filename = os.path.join(os.path.expanduser('~/.thumbnails/normal'),
-                               file_hash) + '.png'
-    if os.path.exists(tb_filename):
-        return tb_filename
-    else:
-        return None
-
-def in_rectangle((x,y), (x1, y1, x2, y2)):
-    """is the point (x,y) within the rectangle whose
-    corners are (x1, y1) and (x2, y2)"""
-    if x1 > x2:
-        x1, x2 = x2, x1
-    if y1 > y2:
-        y1, y2 = y2, y1
-
-    return x1 < x < x2 and y1 < y < y2
 
     
 class Organizr(wx.App):
