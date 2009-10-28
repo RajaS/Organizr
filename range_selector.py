@@ -5,8 +5,11 @@ a given range easily using the mouse"""
 # Raja S
 # Oct 2009
 
+from __future__ import division
 import wx
 from organizr import DisplayCanvas
+from utils import in_rectangle
+
 
 class RangeSelector(DisplayCanvas):
     """The selector
@@ -34,6 +37,11 @@ class RangeSelector(DisplayCanvas):
         ht = self.panel_height // 10
         wd = self.panel_width - 2*self.border
 
+        # bounding box where mouse drag will work
+        self.bbox = (self.border, self.panel_height - self.border - 3*ht,
+                     self.panel_width - self.border,
+                     self.panel_height - self.border - ht)
+        
         dc.SetBrush(self.brush1)
         dc.DrawRectangle(self.border, self.panel_height - ht - self.border,
                          wd, ht)
@@ -49,6 +57,26 @@ class RangeSelector(DisplayCanvas):
                          self.range_to_canvas(self.subrange_max - self.subrange_min),
                          ht)
 
+    def get_subrange(self, x, y):
+        """From the x,y coords of the mouse position,
+        calculate the chosen subrange.
+        x and y are relative to start of bbox"""
+        subrange_center = self.canvas_to_range(x)
+        print 'center', subrange_center
+        subrange_width = ((self.bbox[3] - y) / (
+                self.bbox[3] - self.bbox[1]))*(
+                self.max - self.min)
+
+        start = max(self.min, subrange_center - subrange_width)
+        end = min(self.max, subrange_center + subrange_width)
+        return start, end
+
+    def canvas_to_range(self, x):
+        """convert a value from x coord on canvas to
+        actual value in the range"""
+        return (x - self.border) * (
+            (self.max - self.min) / (self.panel_width - 2*self.border))
+        
     def range_to_canvas(self, x):
         """convert a value on the specified range to the x value
         on the canvas"""
@@ -59,7 +87,14 @@ class RangeSelector(DisplayCanvas):
     def on_mouse(self, event):
         """Handle mouse movements"""
         if event.LeftIsDown() and event.Dragging():
-            print event.GetPosition()
+            x, y = event.GetPosition()
+
+            if in_rectangle((x,y), self.bbox):
+                self.subrange_min, self.subrange_max = self.get_subrange(
+                    x, y)
+                self.NEEDREDRAW = True
+        else:
+            event.Skip()
 
 def runTest(frame, nb, log):
     win = RangeSelector(nb, (1,10))
