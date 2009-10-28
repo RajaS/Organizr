@@ -104,7 +104,8 @@ class MainFrame(wx.Frame):
 
         # first split - playlist on top
         self.bottompanel = wx.Panel(self, -1)
-        self.playlistcanvas = PlayListCanvas(self)
+        #self.toppanel = wx.Panel(self, -1)
+        #self.playlistcanvas = PlayListCanvas(self)
         self.actionlist = ActionList(self)
 
         # next split the bottom panel into canvas and sidepanel
@@ -113,6 +114,16 @@ class MainFrame(wx.Frame):
         self.canvas = ImageCanvas(self.vertical_splitter)
         self.sidepanel = wx.Panel(self.vertical_splitter, -1)
 
+        # split top panel for toggling between playlistcanvas
+        # and composite control panel
+        self.toggle_splitter = wx.SplitterWindow(self, -1,
+                                            style=wx.SP_3D|wx.SP_BORDER)
+        self.playlistcanvas = PlayListCanvas(self.toggle_splitter)
+        self.composite_control = wx.Panel(self.toggle_splitter)
+        self.toggle_splitter.SplitVertically(self.playlistcanvas,
+                                             self.composite_control, 20)
+        self.toggle_splitter.Unsplit()
+        
         # split sidepanel into exifpanel and thumbnailpanel
         self.horizontal_splitter = wx.SplitterWindow(self.sidepanel, -1,
                                             style=wx.SP_3D|wx.SP_BORDER)
@@ -144,7 +155,7 @@ class MainFrame(wx.Frame):
         
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
-        self.sizer_1.Add(self.playlistcanvas, 1, wx.ALL|wx.EXPAND, 20)
+        self.sizer_1.Add(self.toggle_splitter, 1, wx.ALL|wx.EXPAND, 20)
         self.sizer_1.Add(self.bottompanel, 5, wx.ALL|wx.EXPAND, 4)
 
         sizer_2 = wx.BoxSizer(wx.HORIZONTAL)
@@ -229,6 +240,10 @@ class MainFrame(wx.Frame):
         self.COMPOSITE_SELECTED = True
         self.ov.load()
 
+        self.toggle_splitter.SplitVertically(self.playlistcanvas,
+                                             self.composite_control)
+        self.toggle_splitter.Unsplit(self.playlistcanvas)
+        
     def onnext(self, event):
         """display next image in the playlist.
         At end of playlist, behave according to whether we want to wrap"""
