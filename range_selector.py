@@ -14,11 +14,14 @@ from utils import in_rectangle
 class RangeSelector(DisplayCanvas):
     """The selector
     """
-    def __init__(self, parent, range):
-        """
+    def __init__(self, parent, range, vals=[]):
+        """range is a tuple specifying limits of the range.
+        vals are the populated values, that is the
+        preexisting values to display
 	"""
         DisplayCanvas.__init__(self, parent)
         self.min, self.max = range
+        self.vals = vals
 
         self.subrange_min = self.min
         self.subrange_max = self.max
@@ -61,7 +64,15 @@ class RangeSelector(DisplayCanvas):
                     self.panel_height - ht - 2*self.border)
         dc.DrawText('%0.2f' %(self.subrange_max), x2,
                     self.panel_height - self.border)
-        
+
+        # draw the vals
+        # TODO: donot overlap vals, instead stack them
+        dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
+        y1 = self.panel_height - self.border - ht/5
+        y2 = self.panel_height - self.border - ht + ht/5
+        for val in self.vals:
+            x = self.range_to_canvas(val)
+            dc.DrawLine(x, y1, x, y2)
 
     def get_subrange(self, x, y):
         """From the x,y coords of the mouse position,
@@ -103,7 +114,7 @@ class RangeSelector(DisplayCanvas):
             event.Skip()
 
 def runTest(frame, nb, log):
-    win = RangeSelector(nb, (1,10))
+    win = RangeSelector(nb, (1,10), [2,3,4])
     return win
 
 
