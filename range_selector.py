@@ -8,7 +8,7 @@ a given range easily using the mouse"""
 from __future__ import division
 import wx
 from organizr import DisplayCanvas
-from utils import in_rectangle
+from utils import in_rectangle, list_to_hist
 
 
 class RangeSelector(DisplayCanvas):
@@ -20,8 +20,11 @@ class RangeSelector(DisplayCanvas):
         preexisting values to display
 	"""
         DisplayCanvas.__init__(self, parent)
+        #self.range = range
         self.min, self.max = range
-        self.vals = vals
+
+        # convert list vals into a dict
+        self.vals = list_to_hist(vals)
 
         self.subrange_min = self.min
         self.subrange_max = self.max
@@ -68,24 +71,24 @@ class RangeSelector(DisplayCanvas):
         # draw the vals
         # TODO: donot overlap vals, instead stack them
         dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
-        y1 = self.panel_height - self.border - ht/5
-        y2 = self.panel_height - self.border - ht + ht/5
+        y1 = self.panel_height - self.border - ht/10
+        #y2 = self.panel_height - self.border - ht + ht/5
         for val in self.vals:
             x = self.range_to_canvas(val)
-            dc.DrawLine(x, y1, x, y2)
+            dc.DrawLine(x, y1, x, y1 - self.vals[val])
 
     def get_subrange(self, x, y):
         """From the x,y coords of the mouse position,
         calculate the chosen subrange.
         """
-        subrange_center = self.canvas_to_range(x)
-        print 'center', subrange_center
+        self.subrange_center = self.canvas_to_range(x)
+        print 'center', self.subrange_center
         subrange_width = ((self.bbox[3] - y) / (
                 self.bbox[3] - self.bbox[1]))*((
                 self.max - self.min) / 2)
 
-        start = max(self.min, subrange_center - subrange_width)
-        end = min(self.max, subrange_center + subrange_width)
+        start = max(self.min, self.subrange_center - subrange_width)
+        end = min(self.max, self.subrange_center + subrange_width)
         return start, end
 
     def canvas_to_range(self, x):
@@ -103,18 +106,20 @@ class RangeSelector(DisplayCanvas):
         
     def on_mouse(self, event):
         """Handle mouse movements"""
-        if event.LeftIsDown() and event.Dragging():
-            x, y = event.GetPosition()
+        x, y = event.GetPosition()
 
+        if event.LeftIsDown() and event.Dragging():
             if in_rectangle((x,y), self.bbox):
                 self.subrange_min, self.subrange_max = self.get_subrange(
                     x, y)
                 self.NEEDREDRAW = True
+
         else:
             event.Skip()
 
+            
 def runTest(frame, nb, log):
-    win = RangeSelector(nb, (1,10), [2,3,4])
+    win = RangeSelector(nb, (1,10), [2,3,4, 2, 3, 1, 7, 8, 3, 3, 2, 3, 3, 3, 3])
     return win
 
 
