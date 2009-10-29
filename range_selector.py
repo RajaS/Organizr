@@ -75,12 +75,10 @@ class RangeSelector(DisplayCanvas):
             x = self.range_to_canvas(val)
             dc.DrawLine(x, y1, x, y1 - self.vals[val])
 
-
     def format_val(self, val):
         """Format the values in the range into readable
         form. Note that this may be customized in the subclasses"""
         return '%0.2f' % (val)
-        
             
     def get_subrange(self, x, y):
         """From the x,y coords of the mouse position,

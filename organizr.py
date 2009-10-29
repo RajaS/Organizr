@@ -110,10 +110,10 @@ class MainFrame(wx.Frame):
         self.nb = wx.Notebook(self.composite_control)
         self.buttonpanel = wx.Panel(self.composite_control, -1)
 
-        self.date_select = RangeSelector(self.nb, (1,10))
-        self.aperture_select = RangeSelector(self.nb, (1.4, 32))
-        self.shutter_select = RangeSelector(self.nb, (0.001, 3))
-        self.focal_select = RangeSelector(self.nb, (10, 300))
+        self.date_select = DateRangeSelector(self.nb)
+        self.aperture_select = ApRangeSelector(self.nb)
+        self.shutter_select = ShutRangeSelector(self.nb)
+        self.focal_select = FocRangeSelector(self.nb)
 
         self.nb.AddPage(self.date_select, "Date")
         self.nb.AddPage(self.aperture_select, "Aperture")
@@ -351,6 +351,44 @@ class MainFrame(wx.Frame):
                                         '.jpg', '.jpeg', '.tif', '.tiff']:
                 self.playlist.append(os.path.join(dirname, eachfile))
         self.playlist.sort()
+        
+
+class DateRangeSelector(RangeSelector):
+    """select from available shooting dates"""
+    def __init__(self, parent):
+        range = [1,1000] # TODO
+        RangeSelector.__init__(self, parent, range)
+
+    def format_val(val):
+        """convert from utc time to readable format"""
+        pass # TODO
+
+class ApRangeSelector(RangeSelector):
+    """select range of aperture values"""
+    def __init__(self, parent):
+        range = [1.4, 32]
+        RangeSelector.__init__(self, parent, range)
+
+    def format_val(val):
+        return '%0.1f' % (val)
+
+    
+class ShutRangeSelector(RangeSelector):
+    """Selecte range of shutter times"""
+    def __init__(self, parent):
+        range = [0.0001, 5]
+        RangeSelector.__init__(self, parent, range)
+        # TODO: log scale
+
+    def format_val(val):
+        pass # TODO: print aperture value as fraction
+
+    
+class FocRangeSelector(RangeSelector):
+    """Select range of focal lengths"""
+    def __init__(self, parent):
+        range = [12, 400]
+        RangeSelector.__init__(self, parent, range)
         
         
 class ImageCanvas(DisplayCanvas):
