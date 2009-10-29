@@ -20,11 +20,11 @@ class RangeSelector(DisplayCanvas):
         DisplayCanvas.__init__(self, parent)
         self.min, self.max = range
 
-        self.subrange_min = 3 #self.min
-        self.subrange_max = 5 #self.max
+        self.subrange_min = self.min
+        self.subrange_max = self.max
 
-        self.brush1 = wx.Brush((200, 200, 200), wx.SOLID)
-        self.brush2 = wx.Brush((100, 100, 100), wx.SOLID)
+        self.range_brush = wx.Brush((200, 200, 200), wx.SOLID)
+        self.subrange_brush = wx.Brush((100, 100, 100), wx.SOLID)
         self.border = 20
         
         self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse)
@@ -32,17 +32,17 @@ class RangeSelector(DisplayCanvas):
         
     def draw(self, dc):
         """Draw the range and the selected subrange"""
-        self.border = 20
         self.panel_width, self.panel_height = self.GetSize()
         ht = self.panel_height // 10
         wd = self.panel_width - 2*self.border
 
         # bounding box where mouse drag will work
-        self.bbox = (self.border, self.panel_height - self.border - 3*ht,
+        self.bbox = (self.border, self.panel_height - self.border - 5*ht,
                      self.panel_width - self.border,
                      self.panel_height - self.border - ht)
-        
-        dc.SetBrush(self.brush1)
+
+        # draw the range rectangle
+        dc.SetBrush(self.range_brush)
         dc.DrawRectangle(self.border, self.panel_height - ht - self.border,
                          wd, ht)
 
@@ -51,21 +51,27 @@ class RangeSelector(DisplayCanvas):
         dc.DrawText(str(self.max), self.panel_width - self.border,
                     self.panel_height - ht - 2*self.border)
 
-        dc.SetBrush(self.brush2)
-        dc.DrawRectangle(self.range_to_canvas(self.subrange_min),
-                         self.panel_height - ht - self.border,
-                         self.range_to_canvas(self.subrange_max - self.subrange_min),
-                         ht)
+        # and the subrange rectangle
+        dc.SetBrush(self.subrange_brush)
+        x1 = self.range_to_canvas(self.subrange_min)
+        x2 = self.range_to_canvas(self.subrange_max)
+        dc.DrawRectangle(x1,self.panel_height - ht - self.border,
+                         x2 - x1, ht)
+        dc.DrawText('%0.2f' % (self.subrange_min), x1 - 10,
+                    self.panel_height - ht - 2*self.border)
+        dc.DrawText('%0.2f' %(self.subrange_max), x2,
+                    self.panel_height - self.border)
+        
 
     def get_subrange(self, x, y):
         """From the x,y coords of the mouse position,
         calculate the chosen subrange.
-        x and y are relative to start of bbox"""
+        """
         subrange_center = self.canvas_to_range(x)
         print 'center', subrange_center
         subrange_width = ((self.bbox[3] - y) / (
-                self.bbox[3] - self.bbox[1]))*(
-                self.max - self.min)
+                self.bbox[3] - self.bbox[1]))*((
+                self.max - self.min) / 2)
 
         start = max(self.min, subrange_center - subrange_width)
         end = min(self.max, subrange_center + subrange_width)
@@ -75,7 +81,7 @@ class RangeSelector(DisplayCanvas):
         """convert a value from x coord on canvas to
         actual value in the range"""
         return (x - self.border) * (
-            (self.max - self.min) / (self.panel_width - 2*self.border))
+            (self.max - self.min) / (self.panel_width - 2*self.border)) + self.min
         
     def range_to_canvas(self, x):
         """convert a value on the specified range to the x value
