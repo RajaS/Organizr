@@ -14,6 +14,8 @@ import copy
 import yaml
 import commands
 
+from range_selector import RangeSelector
+
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 from utils import *
@@ -97,11 +99,26 @@ class MainFrame(wx.Frame):
         # and composite control panel
         self.toggle_splitter = wx.SplitterWindow(self, -1,
                                             style=wx.SP_3D|wx.SP_BORDER)
-        self.playlistcanvas = PlayListCanvas(self.toggle_splitter)
+        self.upperpanel = wx.Panel(self.toggle_splitter)
         self.composite_control = wx.Panel(self.toggle_splitter)
-        self.toggle_splitter.SplitVertically(self.playlistcanvas,
+        self.toggle_splitter.SplitVertically(self.upperpanel,
                                              self.composite_control, 20)
         self.toggle_splitter.Unsplit()
+        self.playlistcanvas = PlayListCanvas(self.upperpanel)
+
+        # populate the composite control
+        self.nb = wx.Notebook(self.composite_control)
+        self.buttonpanel = wx.Panel(self.composite_control, -1)
+
+        self.date_select = RangeSelector(self.nb, (1,10))
+        self.aperture_select = RangeSelector(self.nb, (1.4, 32))
+        self.shutter_select = RangeSelector(self.nb, (0.001, 3))
+        self.focal_select = RangeSelector(self.nb, (10, 300))
+
+        self.nb.AddPage(self.date_select, "Date")
+        self.nb.AddPage(self.aperture_select, "Aperture")
+        self.nb.AddPage(self.shutter_select, "Shutter speed")
+        self.nb.AddPage(self.focal_select, "Focal length")
         
         # split sidepanel into exifpanel and thumbnailpanel
         self.horizontal_splitter = wx.SplitterWindow(self.sidepanel, -1,
@@ -134,8 +151,8 @@ class MainFrame(wx.Frame):
         
     def __do_layout(self):
         self.sizer_1 = wx.BoxSizer(wx.VERTICAL)
-        self.sizer_1.Add(self.toggle_splitter, 1, wx.ALL|wx.EXPAND, 20)
-        self.sizer_1.Add(self.bottompanel, 5, wx.ALL|wx.EXPAND, 4)
+        self.sizer_1.Add(self.toggle_splitter, 1, wx.ALL|wx.EXPAND, 0)
+        self.sizer_1.Add(self.bottompanel, 4, wx.ALL|wx.EXPAND, 4)
 
         sizer_2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_3 = wx.BoxSizer(wx.HORIZONTAL)
@@ -147,6 +164,15 @@ class MainFrame(wx.Frame):
         sizer_2.Add(self.vertical_splitter, 1, wx.EXPAND, 0)
         self.bottompanel.SetSizer(sizer_2)
 
+        sizer_4 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_4.Add(self.nb, 5, wx.EXPAND, 0)
+        sizer_4.Add(self.buttonpanel, 1, wx.EXPAND, 0)
+        self.composite_control.SetSizer(sizer_4)
+
+        sizer_5 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_5.Add(self.playlistcanvas, 1, wx.EXPAND, 20)
+        self.upperpanel.SetSizer(sizer_5)
+        
         self.SetSizer(self.sizer_1)
         self.Layout()
 
@@ -219,9 +245,9 @@ class MainFrame(wx.Frame):
         self.COMPOSITE_SELECTED = True
         self.ov.load()
 
-        self.toggle_splitter.SplitVertically(self.playlistcanvas,
+        self.toggle_splitter.SplitVertically(self.upperpanel,
                                              self.composite_control)
-        self.toggle_splitter.Unsplit(self.playlistcanvas)
+        self.toggle_splitter.Unsplit(self.upperpanel)
         
     def onnext(self, event):
         """display next image in the playlist.
@@ -325,68 +351,7 @@ class MainFrame(wx.Frame):
                                         '.jpg', '.jpeg', '.tif', '.tiff']:
                 self.playlist.append(os.path.join(dirname, eachfile))
         self.playlist.sort()
-
         
-class DisplayCanvas(wx.Panel):
-    """A panel that can be subclassed and used for displaying images"""
-    def __init__(self, parent, **kwargs):
-        wx.Panel.__init__(self, parent, -1, **kwargs)
-
-        self.NEEDREDRAW = False
-        self.NEEDREDRAWFRAME = False
-        self.Bind(wx.EVT_SIZE, self.on_resize)
-        self.Bind(wx.EVT_IDLE, self.on_idle)
-        self.Bind(wx.EVT_PAINT, self.on_paint) 
-
-    def on_idle(self, event):
-        """Redraw if there is a change"""
-        if self.NEEDREDRAW:
-            dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
-                               wx.BUFFER_CLIENT_AREA)
-            dc.Clear()  #clear old image if still there        
-            self.draw(dc)
-            self.NEEDREDRAW = False
-
-    def image_to_bitmap(self, img):
-        newimage = apply(wx.EmptyImage, img.size)
-        newimage.SetData(img.convert( "RGB").tostring())
-        bmp = newimage.ConvertToBitmap()
-        return bmp
-
-    def on_resize(self, event):
-        """when canvas  is resized, we create a new buffer, which will
-        be redrawn on next idle event"""
-        # update / initialize height and width
-        self.width, self.height = self.GetSize()
-        
-        # update / create the buffer for the buffered dc
-        image = wx.EmptyImage(self.width, self.height)
-        wx.Image.Create(image, self.width, self.height, False)
-        wx.Image.SetRGBRect(image, wx.Rect(0, 0, self.width, self.height),
-                            255, 255, 255)        
-        self.buffer = wx.BitmapFromImage(image)
-        self.NEEDREDRAW = True
-
-    def on_paint(self, event):
-        dc = wx.BufferedPaintDC(self, self.buffer)
-
-    def get_resize_params(self, imagewidth, imageheight):
-        """calculate params for resizing image to canvas"""
-        # What drives the scaling - height or width
-        if imagewidth / imageheight > self.width / self.height:
-            self.scalingvalue = self.width / imagewidth
-        else:
-            self.scalingvalue = self.height / imageheight
-                
-        # resize with antialiasing
-        self.resized_width =  int(imagewidth * self.scalingvalue)
-        self.resized_height = int(imageheight * self.scalingvalue)
-        self.xoffset = (self.width-self.resized_width)/2
-        self.yoffset = (self.height-self.resized_height)/2
-
-    def draw(self, dc):
-        """Drawing routine.Implement in subclass"""
-        pass
         
 class ImageCanvas(DisplayCanvas):
     """panel where the images are displayed

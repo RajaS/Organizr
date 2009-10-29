@@ -7,8 +7,8 @@ a given range easily using the mouse"""
 
 from __future__ import division
 import wx
-from organizr import DisplayCanvas
-from utils import in_rectangle, list_to_hist
+
+from utils import in_rectangle, list_to_hist, DisplayCanvas
 
 
 class RangeSelector(DisplayCanvas):
@@ -43,7 +43,7 @@ class RangeSelector(DisplayCanvas):
         wd = self.panel_width - 2*self.border
 
         # bounding box where mouse drag will work
-        self.bbox = (self.border, self.panel_height - self.border - 5*ht,
+        self.bbox = (self.border, self.panel_height - self.border - 7*ht,
                      self.panel_width - self.border,
                      self.panel_height - self.border - ht)
 
@@ -63,20 +63,25 @@ class RangeSelector(DisplayCanvas):
         x2 = self.range_to_canvas(self.subrange_max)
         dc.DrawRectangle(x1,self.panel_height - ht - self.border,
                          x2 - x1, ht)
-        dc.DrawText('%0.2f' % (self.subrange_min), x1 - 10,
+        dc.DrawText(self.format_val(self.subrange_min), x1 - 10,
                     self.panel_height - ht - 2*self.border)
-        dc.DrawText('%0.2f' %(self.subrange_max), x2,
+        dc.DrawText(self.format_val(self.subrange_max), x2,
                     self.panel_height - self.border)
 
         # draw the vals
-        # TODO: donot overlap vals, instead stack them
         dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
         y1 = self.panel_height - self.border - ht/10
-        #y2 = self.panel_height - self.border - ht + ht/5
         for val in self.vals:
             x = self.range_to_canvas(val)
             dc.DrawLine(x, y1, x, y1 - self.vals[val])
 
+
+    def format_val(self, val):
+        """Format the values in the range into readable
+        form. Note that this may be customized in the subclasses"""
+        return '%0.2f' % (val)
+        
+            
     def get_subrange(self, x, y):
         """From the x,y coords of the mouse position,
         calculate the chosen subrange.
