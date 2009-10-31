@@ -1,0 +1,17 @@
+# actions on file
+
+# %f is filename without extension
+# %F is filename with extension
+# %t is trash directory
+
+Delete Raw:
+       key: r
+       action: mv %f.CR2 %t
+
+Delete file:
+       key: j
+       action: mv %F %t
+
+Delete Raw and file:
+       key: b
+       action: mv %F %t & mv %f.CR2 %t
