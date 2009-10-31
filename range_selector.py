@@ -7,7 +7,6 @@ a given range easily using the mouse"""
 
 from __future__ import division
 import wx
-import math
 from utils import in_rectangle, list_to_hist, DisplayCanvas
 
 
@@ -21,8 +20,6 @@ class RangeSelector(DisplayCanvas):
 	"""
         DisplayCanvas.__init__(self, parent)
         self.range = range
-        #self.range = range
-        #self.min, self.max = range
 
         # customize if needed when subclassing
         self.CONTINUOUS = True # is the range continuous or discrete
@@ -31,9 +28,6 @@ class RangeSelector(DisplayCanvas):
         # convert list vals into a dict
         self.vals = list_to_hist(vals)
 
-        #self.subrange_min = self.min
-        #self.subrange_max = self.max
-
         self.range_brush = wx.Brush((200, 200, 200), wx.SOLID)
         self.subrange_brush = wx.Brush((100, 100, 100), wx.SOLID)
         self.border = 20
@@ -41,16 +35,20 @@ class RangeSelector(DisplayCanvas):
         self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse)
         self.NEEDREDRAW = True
 
-        self.reset_steps() # can call again from sublass
+        self.reset_steps() # can call again from subclass
         
     def reset_steps(self):
         """Initial set up and resetting of range and subrange
         values"""
         if self.CONTINUOUS:
             self.range_min, self.range_max = self.range
+            self.ticks = [self.range_min + inc*((self.range_max - self.range_min)/5)
+                          for inc in range(1,5)]
+            
         else:
             self.range_min = 0
             self.range_max = len(self.steps)
+            self.ticks = self.steps
 
         self.subrange_min = self.range_min
         self.subrange_max = self.range_max
@@ -82,7 +80,6 @@ class RangeSelector(DisplayCanvas):
         
     def draw(self, dc):
         """Draw the range and the selected subrange"""
-
         # draw the range rectangle
         dc.SetBrush(self.range_brush)
         dc.DrawRectangle(self.border,
@@ -91,9 +88,9 @@ class RangeSelector(DisplayCanvas):
                          self.rect_ht)
 
         dc.DrawText(self.format_val(self.range_min), self.border - 10,
-                    self.height - self.rect_ht - 2*self.border)
+                    self.height - self.border)
         dc.DrawText(self.format_val(self.range_max), self.width - self.border,
-                    self.height - self.rect_ht - 2*self.border)
+                    self.height - self.border)
 
         # and the subrange rectangle
         dc.SetBrush(self.subrange_brush)
@@ -105,8 +102,18 @@ class RangeSelector(DisplayCanvas):
         dc.DrawText(self.format_val(self.subrange_min), x1 - 10,
                     self.height - self.rect_ht - 2*self.border)
         dc.DrawText(self.format_val(self.subrange_max), x2,
-                    self.height - self.border)
-
+                    self.height - self.rect_ht - 2* self.border)
+        
+        # draw the ticks
+        dc.SetPen(wx.Pen(wx.BLACK, 1, wx.SOLID))
+        y1 = self.height - self.border * 0.2
+        y2 = self.height - self.border 
+        for tick in self.ticks:
+            tickx = self.range_to_canvas(tick)
+            dc.DrawLine(tickx, y1, tickx, y2)
+            dc.DrawText(self.format_val(tick),
+                        tickx, self.height - self.border)
+        
         # draw the vals
         dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
         y1 = self.height - self.border - self.rect_ht/10
@@ -117,28 +124,23 @@ class RangeSelector(DisplayCanvas):
     def format_val(self, val):
         """Format the values in the range into readable
         form. Note that this may be customized in the subclasses"""
-        return '%0.2f' % (val)
+        return '%0.1f' % (val)
             
     def get_subrange(self, x, y):
         """From the x,y coords of the mouse position,
         calculate the chosen subrange.
         """
-        self.subrange_center = self.canvas_to_range(x)
-        subrange_width = ((self.bbox[3] - y) / (
-                self.bbox[3] - self.bbox[1]))*((
-                self.range_max - self.range_min) / 2)
+        #self.subrange_center = self.canvas_to_range(x)
+        self.subrange_center = self.x_to_center(x)
+        subrange_width = self.y_to_width(y)
+        # subrange_width = ((self.bbox[3] - y) / (
+        #         self.bbox[3] - self.bbox[1]))*((
+        #         self.range_max - self.range_min) / 2)
         start = max(self.range_min, self.subrange_center - subrange_width)
         end = min(self.range_max, self.subrange_center + subrange_width)
 
         return start, end
 
-    def canvas_to_range(self, x):
-        """convert a value from x coord on canvas to
-        actual value in the range"""
-        return (x - self.border) * (
-                (self.range_max - self.range_min) / (self.width - 2*self.border)) + self.range_min
-
-        
     def range_to_canvas(self, x):
         """convert a value on the specified range to the x value
         on the canvas"""
@@ -158,10 +160,11 @@ class RangeSelector(DisplayCanvas):
     def y_to_width(self, y):
         """From y of mouse position,
         determine the width of the subrange"""
-        # TODo:
-        subrange_width = ((self.bbox[3] - y) / (
+        # divide by range / 1.8 so that there is a buffer
+        # making it easier to cover the whole range
+        return  ((self.bbox[3] - y) / (
                     self.bbox[3] - self.bbox[1]))*((
-                    self.range_max - self.range_min) / 2)
+                    self.range_max - self.range_min) / 1.8)
         
     
     def on_mouse(self, event):
@@ -179,7 +182,7 @@ class RangeSelector(DisplayCanvas):
 
             
 def runTest(frame, nb, log):
-    win = RangeSelector(nb, (1,10), [2,3,4, 2, 3, 1, 7, 8, 3, 3, 2, 3, 3, 3, 3])
+    win = RangeSelector(nb, (0,10), [2,3,4, 2, 3, 1, 7, 8, 3, 3, 2, 3, 3, 3, 3])
     return win
 
 
