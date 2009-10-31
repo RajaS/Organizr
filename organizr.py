@@ -38,21 +38,6 @@ ID_ZOOMOUT = wx.NewId()
 ID_COMPOSITE = wx.NewId()
 
 
-# utility functions
-def reduce_fraction(fraction_string):
-    """If the input string represents a fraction,
-    reduce it and return to one decimal place.
-    ex: input '71/10' gives 7.1
-    input '5' gives 5"""
-    try:
-        num, den = fraction_string.split('/')
-        reduced_string = '%0.1f' % (float(num) / float(den))
-    except ValueError:
-        reduced_string = '%s' % (fraction_string)
-    return reduced_string
-
-
-    
 class Organizr(wx.App):
     """The core class"""
     def __init__(self):
@@ -359,7 +344,7 @@ class DateRangeSelector(RangeSelector):
         range = [1,1000] # TODO
         RangeSelector.__init__(self, parent, range)
 
-    def format_val(val):
+    def format_val(self, val):
         """convert from utc time to readable format"""
         pass # TODO
 
@@ -369,7 +354,7 @@ class ApRangeSelector(RangeSelector):
         range = [1.4, 32]
         RangeSelector.__init__(self, parent, range)
 
-    def format_val(val):
+    def format_val(self, val):
         return '%0.1f' % (val)
 
     
@@ -378,10 +363,11 @@ class ShutRangeSelector(RangeSelector):
     def __init__(self, parent):
         range = [0.0001, 5]
         RangeSelector.__init__(self, parent, range)
-        # TODO: log scale
 
-    def format_val(val):
-        pass # TODO: print aperture value as fraction
+
+    def format_val(self, val):
+        print val, str(reduce_fraction(str(val)))
+        return str(reduce_fraction(str(val)))
 
     
 class FocRangeSelector(RangeSelector):
@@ -1002,5 +988,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-    #cachetest()
-    #resizetest()
+

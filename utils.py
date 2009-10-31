@@ -3,6 +3,20 @@ import os
 import md5
 import wx
 
+# utility functions
+def reduce_fraction(fraction_string):
+    """If the input string represents a fraction,
+    reduce it and return to one decimal place.
+    ex: input '71/10' gives 7.1
+    input '5' gives 5"""
+    try:
+        num, den = fraction_string.split('/')
+        reduced_string = '%0.1f' % (float(num) / float(den))
+    except ValueError:
+        reduced_string = '%s' % (fraction_string)
+    return reduced_string
+
+
 def get_thumbnailfile(filename):
     """for any image filename, find the stored thumbnail.
     As per free desktop specifications, this is stored in
