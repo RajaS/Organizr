@@ -2,6 +2,7 @@
 import os
 import md5
 import wx
+import Exifreader
 
 # utility functions
 def reduce_fraction(fraction_string):
@@ -76,7 +77,10 @@ class DisplayCanvas(wx.Panel):
 
     def image_to_bitmap(self, img):
         newimage = apply(wx.EmptyImage, img.size)
-        newimage.SetData(img.convert( "RGB").tostring())
+        try:
+            newimage.SetData(img.convert( "RGB").tostring())
+        except:
+            pass # TODO: only fordebugging 
         bmp = newimage.ConvertToBitmap()
         return bmp
 
@@ -116,6 +120,71 @@ class DisplayCanvas(wx.Panel):
         pass
 
 
+class ExifInfo():
+    """exif information for an image"""
+    def __init__(self, imagefilehandle):
+        self.imagefilehandle = imagefilehandle
+        self.read_exif_info()
+        self.info = self.process_exif_info()
+        self.exif_info_list = self.info_list()
+        
+    def read_exif_info(self):
+        """read the exif information"""
+        try:
+            self.exifdata = Exifreader.process_file(self.imagefilehandle)
+        except Exifreader.ExifError, msg:
+            self. exifdata = None
+
+    def info_list(self):
+        """exif information as a list of tuples"""
+        return [('Model', '%s' %(self.info.get('Model', 'NA'))),
+                ('Time', '%s' %(self.info.get('DateTime', 'NA'))),
+                ('Mode', '%s' %(self.info.get('ExposureMode', 'NA'))),
+                ('ISO', '%s' %(self.info.get('ISOSpeed', 'NA'))),
+                ('Aperture', '%s' %(reduce_fraction(self.info.get('FNumber', 'NA')))),
+                ('Shutter time', '%s' %(self.info.get('ExposureTime', 'NA'))),
+                ('Focal length', '%s' %(self.info.get('FocalLength', 'NA'))),
+                ('Flash', '%s' %(self.info.get('FlashMode', 'NA'))),
+                ('Lens', '%s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
+                                     (self.info.get('LongFocalLengthOfLens', 'NA'))))]
+        
+    def __str__(self):
+        return repr(self)
+            
+    def __repr__(self):
+        """formatted string of exif info"""
+        return '\n'.join(['Model : %s' %(self.info.get('Model', 'NA')),
+                          'Time : %s' %(self.info.get('DateTime', 'NA')),
+                          'Mode : %s' %(self.info.get('ExposureMode', 'NA')),
+                          'ISO : %s' %(self.info.get('ISOSpeed', 'NA')),
+                          'Aperture : %s' %(reduce_fraction(self.info.get('FNumber', 'NA'))),
+                          'Shutter time : %s' %(self.info.get('ExposureTime', 'NA')),
+                          'Focal length : %s' %(self.info.get('FocalLength', 'NA')),
+                          'Flash : %s' %(self.info.get('FlashMode', 'NA')),
+                          'Lens : %s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
+                                             self.info.get('LongFocalLengthOfLens', 'NA'))]) 
+            
+    def process_exif_info(self):
+        """Extract the useful info only"""
+        info = {}
+        data = self.exifdata
+
+        if not data:
+            return info
+        
+        for key in data.keys():
+            for wanted_key in ['ExposureMode', 'DateTime',
+                               'ExposureTime', 'FocalLength',
+                               'FlashMode', 'ISOSpeed',
+                               'Model', 'Orientation',
+                               'FNumber', 'LongFocalLengthOfLens',
+                               'ShortFocalLengthOfLens']:
+                if wanted_key in key:
+                    info[wanted_key] = str(data[key])
+
+        return info
+
+    
 def main():
     print list_to_hist([1,2,1,1,3,4,2])
 

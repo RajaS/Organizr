@@ -19,7 +19,6 @@ from range_selector import RangeSelector
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 from utils import *
-import Exifreader
 import overview
 #########################
 # TODO:
@@ -230,6 +229,14 @@ class MainFrame(wx.Frame):
         self.COMPOSITE_SELECTED = True
         self.ov.load()
 
+        # self.date
+        self.aperture_select.vals = self.ov.aperture_vals
+        self.shutter_select.vals = self.ov.shutter_vals
+        self.focal_select.vals = self.ov.focal_vals
+        self.aperture_select.reset_steps()
+        self.shutter_select.reset_steps()
+        self.focal_select.reset_steps()
+        
         self.toggle_splitter.SplitVertically(self.upperpanel,
                                              self.composite_control)
         self.toggle_splitter.Unsplit(self.upperpanel)
@@ -353,21 +360,21 @@ class ApRangeSelector(RangeSelector):
     def __init__(self, parent):
         range = [1.4, 32]
         RangeSelector.__init__(self, parent, range)
+        self.CONTINUOUS = False
+        self.steps = ['', '1.4', '1.8', '2.5', '3.2', '4.0', '5.4',
+                      '6.3', '8', '16', '32', '']
+        self.reset_steps()
 
-    def format_val(self, val):
-        return '%0.1f' % (val)
-
-    
+        
 class ShutRangeSelector(RangeSelector):
     """Selecte range of shutter times"""
     def __init__(self, parent):
         range = [0.0001, 5]
         RangeSelector.__init__(self, parent, range)
-
-
-    def format_val(self, val):
-        print val, str(reduce_fraction(str(val)))
-        return str(reduce_fraction(str(val)))
+        self.CONTINUOUS = False
+        self.steps = ['', '1/1000', '1/500', '1/320',  '1/250', '1/200', '1/160', '1/125',
+                      '1/50', '1/30', '1/20', '1/10', '1/5', '1', '']
+        self.reset_steps()
 
     
 class FocRangeSelector(RangeSelector):
@@ -375,7 +382,10 @@ class FocRangeSelector(RangeSelector):
     def __init__(self, parent):
         range = [12, 400]
         RangeSelector.__init__(self, parent, range)
-        
+        self.CONTINUOUS = False
+        self.steps = ['', '17', '30', '50', '70', '100', '200', '300', '']
+        self.reset_steps()
+
         
 class ImageCanvas(DisplayCanvas):
     """panel where the images are displayed
@@ -915,70 +925,6 @@ class Im():
             self.original_image = self.original_image.rotate(180)
      
         
-class ExifInfo():
-    """exif information for an image"""
-    def __init__(self, imagefilehandle):
-        self.imagefilehandle = imagefilehandle
-        self.read_exif_info()
-        self.info = self.process_exif_info()
-        self.exif_info_list = self.info_list()
-        
-    def read_exif_info(self):
-        """read the exif information"""
-        try:
-            self.exifdata = Exifreader.process_file(self.imagefilehandle)
-        except Exifreader.ExifError, msg:
-            self. exifdata = None
-
-    def info_list(self):
-        """exif information as a list of tuples"""
-        return [('Model', '%s' %(self.info.get('Model', 'NA'))),
-                ('Time', '%s' %(self.info.get('DateTime', 'NA'))),
-                ('Mode', '%s' %(self.info.get('ExposureMode', 'NA'))),
-                ('ISO', '%s' %(self.info.get('ISOSpeed', 'NA'))),
-                ('Aperture', '%s' %(reduce_fraction(self.info.get('FNumber', 'NA')))),
-                ('Shutter time', '%s' %(self.info.get('ExposureTime', 'NA'))),
-                ('Focal length', '%s' %(self.info.get('FocalLength', 'NA'))),
-                ('Flash', '%s' %(self.info.get('FlashMode', 'NA'))),
-                ('Lens', '%s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
-                                     (self.info.get('LongFocalLengthOfLens', 'NA'))))]
-        
-    def __str__(self):
-        return repr(self)
-            
-    def __repr__(self):
-        """formatted string of exif info"""
-        return '\n'.join(['Model : %s' %(self.info.get('Model', 'NA')),
-                          'Time : %s' %(self.info.get('DateTime', 'NA')),
-                          'Mode : %s' %(self.info.get('ExposureMode', 'NA')),
-                          'ISO : %s' %(self.info.get('ISOSpeed', 'NA')),
-                          'Aperture : %s' %(reduce_fraction(self.info.get('FNumber', 'NA'))),
-                          'Shutter time : %s' %(self.info.get('ExposureTime', 'NA')),
-                          'Focal length : %s' %(self.info.get('FocalLength', 'NA')),
-                          'Flash : %s' %(self.info.get('FlashMode', 'NA')),
-                          'Lens : %s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
-                                             self.info.get('LongFocalLengthOfLens', 'NA'))]) 
-            
-    def process_exif_info(self):
-        """Extract the useful info only"""
-        info = {}
-        data = self.exifdata
-
-        if not data:
-            return info
-        
-        for key in data.keys():
-            for wanted_key in ['ExposureMode', 'DateTime',
-                               'ExposureTime', 'FocalLength',
-                               'FlashMode', 'ISOSpeed',
-                               'Model', 'Orientation',
-                               'FNumber', 'LongFocalLengthOfLens',
-                               'ShortFocalLengthOfLens']:
-                if wanted_key in key:
-                    info[wanted_key] = str(data[key])
-
-        return info
-
 def main():
     """
     """

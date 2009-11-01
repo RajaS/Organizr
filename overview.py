@@ -9,6 +9,7 @@ based on exif info"""
 from __future__ import division
 from organizr import get_thumbnailfile
 import Image
+from utils import ExifInfo, reduce_fraction
 
 class Overview():
     def __init__(self, parent, playlist):
@@ -16,13 +17,29 @@ class Overview():
         self.playlist = playlist
         self.frame = parent
         self.tn_size = 128
-
+        
     def build_composite(self):
         """create a composite image using all the images"""
+        # load all exif info
+        self.exifdata = []
+        for filename in self.playlist:
+            exif_data = ExifInfo(open
+                            (filename, 'r'))
+            self.exifdata.append(exif_data.info)
+
+        self.date_vals = [data.get('DateTime', -1) for data in self.exifdata]
+        self.aperture_vals = [reduce_fraction(data.get('FNumber', -1))
+                              for data in self.exifdata]
+        self.shutter_vals = [data.get('ExposureTime', -1) for data in self.exifdata]
+        self.focal_vals = [data.get('FocalLength', -1) for data in self.exifdata]
+
+        print 'date', self.date_vals
+        print 'aperture', self.aperture_vals
+        print 'shutter', self.shutter_vals
+        print 'focus', self.focal_vals
+        
         w,h = self.frame.canvas.GetSize()
 
-        print 'canvas_size', w,h
-        
         num_pics = len(self.playlist)
 
         ratio = ((w*h) / num_pics) ** 0.5
@@ -60,7 +77,6 @@ class Overview():
                 self.composite.paste(tb, (x1+xoffset, y1+yoffset))
                 index += 1
 
-        self.composite.save('/data/tmp/composite.jpg')
 
     def load(self):
         """load the composite image on the canvas"""
