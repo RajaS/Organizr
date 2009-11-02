@@ -9,7 +9,8 @@ based on exif info"""
 from __future__ import division
 from organizr import get_thumbnailfile
 import Image
-from utils import ExifInfo, reduce_fraction
+import datetime
+from utils import ExifInfo, reduce_fraction, relative_time
 
 class Overview():
     def __init__(self, parent, playlist):
@@ -17,9 +18,9 @@ class Overview():
         self.playlist = playlist
         self.frame = parent
         self.tn_size = 128
-        
-    def build_composite(self):
-        """create a composite image using all the images"""
+
+    def get_exifinfo(self):
+        """For all files in playlist get the exif information"""
         # load all exif info
         self.exifdata = []
         for filename in self.playlist:
@@ -27,17 +28,18 @@ class Overview():
                             (filename, 'r'))
             self.exifdata.append(exif_data.info)
 
-        self.date_vals = [data.get('DateTime', -1) for data in self.exifdata]
-        self.aperture_vals = [reduce_fraction(data.get('FNumber', -1))
+        date_vals = [data.get('DateTime', -1) for data in self.exifdata]
+        self.aperture_vals = [reduce_fraction(data.get('FNumber', '-1'))
                               for data in self.exifdata]
-        self.shutter_vals = [data.get('ExposureTime', -1) for data in self.exifdata]
-        self.focal_vals = [data.get('FocalLength', -1) for data in self.exifdata]
-
-        print 'date', self.date_vals
-        print 'aperture', self.aperture_vals
-        print 'shutter', self.shutter_vals
-        print 'focus', self.focal_vals
+        self.shutter_vals = [data.get('ExposureTime', '-1') for data in self.exifdata]
+        self.focal_vals = [data.get('FocalLength', '-1') for data in self.exifdata]
+        date_vals = [datetime.datetime.strptime(val, '%Y:%m:%d %H:%M:%S')
+                     for val in date_vals]
+        self.date_vals = [relative_time(date_val) for date_val in date_vals]
         
+    def build_composite(self):
+        """create a composite image using all the images"""
+        self.get_exifinfo()
         w,h = self.frame.canvas.GetSize()
 
         num_pics = len(self.playlist)

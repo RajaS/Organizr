@@ -2,9 +2,24 @@
 import os
 import md5
 import wx
+import datetime
 import Exifreader
 
 # utility functions
+
+def relative_time(timeobj, dawnoftime=None):
+    """Given a datetime object, return time in seconds since
+    an arbitrary epoch start. This dawn of time can be specified,
+    defaults to 01-01-1970"""
+    if dawnoftime == None:
+        dawnoftime = datetime.datetime(1970, 1, 1)
+
+    # difference as a timedelta obj
+    td = timeobj - dawnoftime
+
+    return (td.days * 24 * 60 * 60) + (td.seconds)
+
+
 def reduce_fraction(fraction_string):
     """If the input string represents a fraction,
     reduce it and return to one decimal place.

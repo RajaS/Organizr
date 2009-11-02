@@ -134,7 +134,6 @@ class RangeSelector(DisplayCanvas):
                 pass
         
         # draw the vals
-        print 'vals', self.vals
         dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
         y1 = self.height - self.border - self.rect_ht/10
         for val in self.vals:
@@ -153,6 +152,9 @@ class RangeSelector(DisplayCanvas):
         except IndexError:
             print 'not found value', x
             pass
+        except ValueError:
+            print x
+            print 'notfound'
             
     def format_val(self, val):
         """Format the values in the range into readable

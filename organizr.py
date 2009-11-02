@@ -229,10 +229,13 @@ class MainFrame(wx.Frame):
         self.COMPOSITE_SELECTED = True
         self.ov.load()
 
-        # self.date
+        self.date_select.vals = self.ov.date_vals
+        self.date_select.range = [min(self.date_select.vals),
+                                  max(self.date_select.vals)]
         self.aperture_select.vals = self.ov.aperture_vals
         self.shutter_select.vals = self.ov.shutter_vals
         self.focal_select.vals = self.ov.focal_vals
+        self.date_select.reset_steps()
         self.aperture_select.reset_steps()
         self.shutter_select.reset_steps()
         self.focal_select.reset_steps()
@@ -353,7 +356,8 @@ class DateRangeSelector(RangeSelector):
 
     def format_val(self, val):
         """convert from utc time to readable format"""
-        pass # TODO
+         # TODO
+        return str(val)
 
 class ApRangeSelector(RangeSelector):
     """select range of aperture values"""
@@ -361,8 +365,8 @@ class ApRangeSelector(RangeSelector):
         range = [1.4, 32]
         RangeSelector.__init__(self, parent, range)
         self.CONTINUOUS = False
-        self.steps = ['', '1.4', '1.8', '2.5', '3.2', '4.0', '5.4',
-                      '6.3', '8', '16', '32', '']
+        self.steps = ['-1', '1.4', '1.8', '2.5', '3.2', '4', '4.5', '5',
+                      '6.3', '7.1', '8', '10', '16', '32', '']
         self.reset_steps()
 
         
@@ -372,8 +376,9 @@ class ShutRangeSelector(RangeSelector):
         range = [0.0001, 5]
         RangeSelector.__init__(self, parent, range)
         self.CONTINUOUS = False
-        self.steps = ['', '1/1000', '1/500', '1/320',  '1/250', '1/200', '1/160', '1/125',
-                      '1/50', '1/30', '1/20', '1/10', '1/5', '1', '']
+        self.steps = ['-1', '1/1000', '1/800', '1/500', '1/400', '1/320',
+                      '1/250', '1/200', '1/160', '1/125', '1/100', '1/80',
+                      '1/50', '1/40', '1/30', '1/20', '1/10', '1/5', '1', '5', '']
         self.reset_steps()
 
     
@@ -383,7 +388,7 @@ class FocRangeSelector(RangeSelector):
         range = [12, 400]
         RangeSelector.__init__(self, parent, range)
         self.CONTINUOUS = False
-        self.steps = ['', '17', '30', '50', '70', '100', '200', '300', '']
+        self.steps = ['-1', '17', '30', '50', '70', '100', '200', '300', '']
         self.reset_steps()
 
         
