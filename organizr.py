@@ -232,10 +232,14 @@ class MainFrame(wx.Frame):
         self.date_select.vals = self.ov.date_vals
         self.date_select.range = [min(self.date_select.vals),
                                   max(self.date_select.vals)]
+        self.date_select.reset_steps()
+        self.date_select.ticks = []
+        self.date_select.ticklabels = []
+        
         self.aperture_select.vals = self.ov.aperture_vals
         self.shutter_select.vals = self.ov.shutter_vals
         self.focal_select.vals = self.ov.focal_vals
-        self.date_select.reset_steps()
+        
         self.aperture_select.reset_steps()
         self.shutter_select.reset_steps()
         self.focal_select.reset_steps()
@@ -357,7 +361,10 @@ class DateRangeSelector(RangeSelector):
     def format_val(self, val):
         """convert from utc time to readable format"""
          # TODO
-        return str(val)
+        dt = datetime.timedelta(0, val) + \
+             datetime.datetime(1970, 1, 1)
+        return dt.strftime('%d %b %y %H:%M')
+
 
 class ApRangeSelector(RangeSelector):
     """select range of aperture values"""
