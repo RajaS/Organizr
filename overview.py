@@ -28,13 +28,14 @@ class Overview():
                             (filename, 'r'))
             self.exifdata.append(exif_data.info)
 
-        date_vals = [data.get('DateTime', -1) for data in self.exifdata]
+        date_vals = [data.get('DateTime', '-1') for data in self.exifdata]
         self.aperture_vals = [reduce_fraction(data.get('FNumber', '-1'))
                               for data in self.exifdata]
         self.shutter_vals = [data.get('ExposureTime', '-1') for data in self.exifdata]
         self.focal_vals = [data.get('FocalLength', '-1') for data in self.exifdata]
+
         date_vals = [datetime.datetime.strptime(val, '%Y:%m:%d %H:%M:%S')
-                     for val in date_vals]
+                     for val in date_vals if val != '-1']
         self.date_vals = [relative_time(date_val) for date_val in date_vals]
         
     def build_composite(self):

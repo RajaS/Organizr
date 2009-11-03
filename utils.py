@@ -163,21 +163,21 @@ class ExifInfo():
                 ('Lens', '%s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
                                      (self.info.get('LongFocalLengthOfLens', 'NA'))))]
         
-    def __str__(self):
-        return repr(self)
+    # def __str__(self):
+    #     return repr(self)
             
-    def __repr__(self):
-        """formatted string of exif info"""
-        return '\n'.join(['Model : %s' %(self.info.get('Model', 'NA')),
-                          'Time : %s' %(self.info.get('DateTime', 'NA')),
-                          'Mode : %s' %(self.info.get('ExposureMode', 'NA')),
-                          'ISO : %s' %(self.info.get('ISOSpeed', 'NA')),
-                          'Aperture : %s' %(reduce_fraction(self.info.get('FNumber', 'NA'))),
-                          'Shutter time : %s' %(self.info.get('ExposureTime', 'NA')),
-                          'Focal length : %s' %(self.info.get('FocalLength', 'NA')),
-                          'Flash : %s' %(self.info.get('FlashMode', 'NA')),
-                          'Lens : %s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
-                                             self.info.get('LongFocalLengthOfLens', 'NA'))]) 
+    # def __repr__(self):
+    #     """formatted string of exif info"""
+    #     return '\n'.join(['Model : %s' %(self.info.get('Model', 'NA')),
+    #                       'Time : %s' %(self.info.get('DateTime', 'NA')),
+    #                       'Mode : %s' %(self.info.get('ExposureMode', 'NA')),
+    #                       'ISO : %s' %(self.info.get('ISOSpeed', 'NA')),
+    #                       'Aperture : %s' %(reduce_fraction(self.info.get('FNumber', 'NA'))),
+    #                       'Shutter time : %s' %(self.info.get('ExposureTime', 'NA')),
+    #                       'Focal length : %s' %(self.info.get('FocalLength', 'NA')),
+    #                       'Flash : %s' %(self.info.get('FlashMode', 'NA')),
+    #                       'Lens : %s - %s' %(self.info.get('ShortFocalLengthOfLens', 'NA'),
+    #                                          self.info.get('LongFocalLengthOfLens', 'NA'))]) 
             
     def process_exif_info(self):
         """Extract the useful info only"""
@@ -186,7 +186,8 @@ class ExifInfo():
 
         if not data:
             return info
-        
+
+        #print data.keys()
         for key in data.keys():
             for wanted_key in ['ExposureMode', 'DateTime',
                                'ExposureTime', 'FocalLength',

@@ -132,18 +132,43 @@ class RangeSelector(DisplayCanvas):
                         tickx, self.height - self.border)
             except:
                 pass
-        
-        # draw the vals
+
+        # Draw the vals
+        self.draw_vals(dc)
+
+    def draw_vals(self, dc):
+        """Draw the individual values"""
         dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
+        dc.SetBrush(wx.Brush(wx.RED, wx.SOLID))
+        
         y1 = self.height - self.border - self.rect_ht/10
-        for val in self.vals:
-            if not self.CONTINUOUS:
+
+        if self.CONTINUOUS:
+            for val in self.vals:
+                x = self.range_to_canvas(val)
+                dc.DrawLine(x, y1, x, y1 - self.vals[val])
+        else:
+            # draw as ' squares' for discrete variables
+            for val in self.vals:
                 ind = self.convert_to_index(val)
                 x = self.range_to_canvas(ind)
-            else:
-                x = self.range_to_canvas(val)
-            dc.DrawLine(x, y1, x, y1 - self.vals[val])
+                val_count = self.vals[val]
+                max_width = self.range_to_canvas(1) - 4
 
+                sq_width = int(val_count ** 0.5) + 1
+                half_width = sq_width // 2
+
+                if val_count == 1:
+                    dc.DrawPoint(x, y1)
+                elif sq_width > max_width:
+                    ht = int(val_count / max_width)
+                    dc.DrawRectangle(x - max_width//2, y1 - ht,
+                                     max_width, ht)
+                else:
+                    dc.DrawRectangle(x-half_width, y1-sq_width,
+                                     sq_width, sq_width)
+
+            
     def convert_to_index(self, x):
         """for discrete variables, convert a value to
         the index used for range"""
@@ -222,7 +247,7 @@ def runTest(frame, nb, log):
     win = RangeSelector(nb, (0,10), [2,3,4, 2, 3, 1, 7, 8, 3, 3, 2, 3, 3, 3, 3])
     win.CONTINUOUS = False
     win.steps = ['0.1', '0.5', '2', '5', '7']
-    win.vals = [0.5, 0.5, 0.5, 2]
+    win.vals = [0.5, 0.5, 0.5,  2]
     win.reset_steps()
     return win
 
