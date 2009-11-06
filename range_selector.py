@@ -233,42 +233,34 @@ class RangeSelector(DisplayCanvas):
         old_min = self.range_min
         old_max = self.range_max
         
-        self.range_min = self.subrange_min
-        self.range_max = self.subrange_max
+        new_min = self.subrange_min
+        new_max = self.subrange_max
 
         if self.CONTINUOUS:
             min_width = 0.2 * (self.range[1] - self.range[0])
-            width = self.range_max - self.range_min
+            width = new_max - new_min
             if width < min_width:
-                center = (self.range_min + self.range_max) / 2
+                center = (new_min + new_max) / 2
                 devn = (min_width - width) / 2
-                self.range_min -= devn
-                self.range_max += devn
+                new_min -= devn
+                new_max += devn
 
-            self.ticks = [self.range_min + inc*((self.range_max - self.range_min)/5)
+            self.ticks = [new_min + inc*((new_max - new_min)/5)
                           for inc in range(1,5)]
             self.ticklabels = [self.format_val(x) for x in self.ticks]
             
         else:
-            if self.range_max - self.range_min < 2:
-                self.range_max += 1
-                self.range_min -= 1
+            if new_max - new_min < 2:
+                new_max += 1
+                new_min -= 1
 
             self.ticks = range(len(self.steps))
             self.ticklabels = self.steps
 
         self.vals = list_to_hist(self.vals)
 
-        new_min = self.range_min
-        new_max = self.range_max
-
-        self.range_min = old_min
-        self.range_max = old_max
-        
-        print (old_min, old_max, new_min, new_max)
         self.animate_range(old_min, old_max, new_min, new_max)
-        
-        #self.NEEDREDRAW = True
+
 
     def animate_range(self, old_min, old_max, new_min, new_max):
         """Animate the display of changes in range"""
