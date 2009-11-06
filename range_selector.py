@@ -33,9 +33,10 @@ class RangeSelector(DisplayCanvas):
         self.border = 20
         
         self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse)
-        self.NEEDREDRAW = True
 
         self.reset_steps() # can call again from subclass
+        self.NEEDREDRAW = True
+
         
     def reset_steps(self):
         """Initial set up and resetting of range and subrange
@@ -258,9 +259,7 @@ class RangeSelector(DisplayCanvas):
             self.ticklabels = self.steps
 
         self.vals = list_to_hist(self.vals)
-
         self.animate_range(old_min, old_max, new_min, new_max)
-
 
     def animate_range(self, old_min, old_max, new_min, new_max):
         """Animate the display of changes in range"""

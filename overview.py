@@ -10,7 +10,7 @@ from __future__ import division
 from organizr import get_thumbnailfile
 import Image
 import datetime
-from utils import ExifInfo, reduce_fraction, relative_time
+from utils import ExifInfo, reduce_fraction, relative_time, in_range
 
 class Overview():
     def __init__(self, parent, playlist):
@@ -19,6 +19,9 @@ class Overview():
         self.frame = parent
         self.tn_size = 128
 
+        self.sub_playlist = self.playlist # selected images only
+        self.get_exifinfo()
+        
     def get_exifinfo(self):
         """For all files in playlist get the exif information"""
         # load all exif info
@@ -37,13 +40,22 @@ class Overview():
         date_vals = [datetime.datetime.strptime(val, '%Y:%m:%d %H:%M:%S')
                      for val in date_vals if val != '-1']
         self.date_vals = [relative_time(date_val) for date_val in date_vals]
+
+
+    def rebuild_subplaylist(self, date_range,
+                            aperture_range, shutter_range, focal_range):
+        """Narrow down the selected images in the playlist"""
+        return [self.playlist[ind] for ind in range(len(self.playlist)) if
+                in_range(self.date_vals[ind], date_range) and
+                in_range(self.aperture_vals[ind], aperture_range) and
+                in_range(self.shutter_vals[ind], shutter_range) and
+                in_range(self.focal_vals[ind], focal_range)]
         
     def build_composite(self):
         """create a composite image using all the images"""
-        self.get_exifinfo()
         w,h = self.frame.canvas.GetSize()
 
-        num_pics = len(self.playlist)
+        num_pics = len(self.sub_playlist)
 
         ratio = ((w*h) / num_pics) ** 0.5
         cols = w // ratio
@@ -59,7 +71,7 @@ class Overview():
         index = 0
         for r in range(rows):
             for c in range(cols):
-                filename = self.playlist[index]
+                filename = self.sub_playlist[index]
                 tb_file = get_thumbnailfile(filename)
                 if not tb_file:
                     try:

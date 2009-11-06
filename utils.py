@@ -69,6 +69,9 @@ def list_to_hist(vals):
             hist[val] = 1
     return hist
 
+def in_range(item, range):
+    """Is item within the range"""
+    return range[0] < item < range[1]
 
 class DisplayCanvas(wx.Panel):
     """A panel that can be subclassed and used for displaying images"""

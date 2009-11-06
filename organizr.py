@@ -92,8 +92,11 @@ class MainFrame(wx.Frame):
 
         # populate the composite control
         self.nb = wx.Notebook(self.composite_control)
-        self.buttonpanel = wx.Panel(self.composite_control, -1)
 
+        self.buttonpanel = wx.Panel(self.composite_control, -1)
+        self.reset_button = wx.Button(self.buttonpanel, -1, "Reset")
+        self.refresh_button = wx.Button(self.buttonpanel, -1, "Refresh")
+        
         self.date_select = DateRangeSelector(self.nb)
         self.aperture_select = ApRangeSelector(self.nb)
         self.shutter_select = ShutRangeSelector(self.nb)
@@ -148,6 +151,11 @@ class MainFrame(wx.Frame):
         sizer_2.Add(self.vertical_splitter, 1, wx.EXPAND, 0)
         self.bottompanel.SetSizer(sizer_2)
 
+        sizer_5 = wx.BoxSizer(wx.VERTICAL)
+        sizer_5.Add(self.reset_button, 1, wx.EXPAND, 5)
+        sizer_5.Add(self.refresh_button, 1, wx.EXPAND, 5)
+        self.buttonpanel.SetSizer(sizer_5)
+        
         sizer_4 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_4.Add(self.nb, 5, wx.EXPAND, 0)
         sizer_4.Add(self.buttonpanel, 1, wx.EXPAND, 0)
@@ -198,7 +206,12 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.im.zoom_in, id=ID_ZOOMIN)
         self.Bind(wx.EVT_MENU, self.im.zoom_out, id=ID_ZOOMOUT)
         self.Bind(wx.EVT_MENU, self.view_composite, id=ID_COMPOSITE)
-        
+
+        self.reset_button.Bind(wx.EVT_BUTTON, self.reset_range_selector)
+        self.refresh_button.Bind(wx.EVT_BUTTON, self.refresh_composite)
+
+        #self.nb.Bind(wx.EVT_MOUSE_EVENTS, self.playlistcanvas.on_mouse_events)
+
         self.canvas.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
         
     def onopen(self, event):
@@ -247,6 +260,14 @@ class MainFrame(wx.Frame):
         self.toggle_splitter.SplitVertically(self.upperpanel,
                                              self.composite_control)
         self.toggle_splitter.Unsplit(self.upperpanel)
+
+    def reset_range_selector(self, event):
+        """reset the range in currently open range_selector"""
+        print self.nb.GetCurrentPage()
+
+    def refresh_composite(self, event):
+        """refresh composite to reflect currently selected subrange"""
+        pass
         
     def onnext(self, event):
         """display next image in the playlist.
@@ -308,6 +329,8 @@ class MainFrame(wx.Frame):
                 preview_start:preview_end]
         
         self.preview  = SeriesPreview(self, preview_files)
+        print 'playlist should draw now'
+        print 'files', preview_files
         self.playlistcanvas.NEEDREDRAW = True
 
         # load and display image and thumbnail
@@ -373,7 +396,7 @@ class ApRangeSelector(RangeSelector):
         RangeSelector.__init__(self, parent, range)
         self.CONTINUOUS = False
         self.steps = ['-1', '1.4', '1.8', '2.5', '3.2', '4', '4.5', '5',
-                      '6.3', '7.1', '8', '10', '16', '32', '']
+                      '5.6', '6.3', '7.1', '8', '10', '16', '32', '']
         self.reset_steps()
 
         
@@ -472,6 +495,7 @@ class PlayListCanvas(DisplayCanvas):
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
+        print 'drawn'
 
     def on_mouse_events(self, event):
         """catch mouse clicks and jump to corresponding image"""
