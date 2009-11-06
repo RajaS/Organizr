@@ -69,8 +69,6 @@ class MainFrame(wx.Frame):
 
         # first split - playlist on top
         self.bottompanel = wx.Panel(self, -1)
-        #self.toppanel = wx.Panel(self, -1)
-        #self.playlistcanvas = PlayListCanvas(self)
         self.actionlist = ActionList(self)
 
         # next split the bottom panel into canvas and sidepanel
@@ -83,12 +81,11 @@ class MainFrame(wx.Frame):
         # and composite control panel
         self.toggle_splitter = wx.SplitterWindow(self, -1,
                                             style=wx.SP_3D|wx.SP_BORDER)
-        self.upperpanel = wx.Panel(self.toggle_splitter)
+        self.playlistcanvas = PlayListCanvas(self.toggle_splitter)
         self.composite_control = wx.Panel(self.toggle_splitter)
-        self.toggle_splitter.SplitVertically(self.upperpanel,
+        self.toggle_splitter.SplitVertically(self.playlistcanvas,
                                              self.composite_control, 20)
         self.toggle_splitter.Unsplit()
-        self.playlistcanvas = PlayListCanvas(self.upperpanel)
 
         # populate the composite control
         self.nb = wx.Notebook(self.composite_control)
@@ -161,9 +158,9 @@ class MainFrame(wx.Frame):
         sizer_4.Add(self.buttonpanel, 1, wx.EXPAND, 0)
         self.composite_control.SetSizer(sizer_4)
 
-        sizer_5 = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_5.Add(self.playlistcanvas, 1, wx.EXPAND, 20)
-        self.upperpanel.SetSizer(sizer_5)
+        #sizer_5 = wx.BoxSizer(wx.HORIZONTAL)
+        #sizer_5.Add(self.playlistcanvas, 1, wx.EXPAND, 20)
+        #self.upperpanel.SetSizer(sizer_5)
         
         self.SetSizer(self.sizer_1)
         self.Layout()
@@ -257,9 +254,9 @@ class MainFrame(wx.Frame):
         self.shutter_select.reset_steps()
         self.focal_select.reset_steps()
         
-        self.toggle_splitter.SplitVertically(self.upperpanel,
+        self.toggle_splitter.SplitVertically(self.playlistcanvas,
                                              self.composite_control)
-        self.toggle_splitter.Unsplit(self.upperpanel)
+        self.toggle_splitter.Unsplit(self.playlistcanvas)
 
     def reset_range_selector(self, event):
         """reset the range in currently open range_selector"""
