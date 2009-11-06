@@ -8,7 +8,7 @@ a given range easily using the mouse"""
 from __future__ import division
 import wx
 from utils import in_rectangle, list_to_hist, DisplayCanvas
-
+import time
 
 class RangeSelector(DisplayCanvas):
     """The selector
@@ -212,14 +212,27 @@ class RangeSelector(DisplayCanvas):
     def reset_range(self):
         """Reset to whole range after a reset"""
         curr_min, curr_max = self.subrange_min, self.subrange_max
+        old_min, old_max = self.range_min, self.range_max
         self.reset_steps()
+
+        # re-reset subrange and range back to prev
         self.subrange_min, self.subrange_max = curr_min, curr_max
-        self.NEEDREDRAW = True
-    
+        
+        new_min = self.range_min
+        new_max = self.range_max
+
+        self.range_min = old_min
+        self.range_max = old_max
+
+        self.animate_range(old_min, old_max, new_min, new_max)
+
     def expand_to_subrange(self):
         """To "zoom" into the range and inspect values.
         Expand the range by making limits same as subrange.
         However, will not expand more than a limit"""
+        old_min = self.range_min
+        old_max = self.range_max
+        
         self.range_min = self.subrange_min
         self.range_max = self.subrange_max
 
@@ -246,8 +259,40 @@ class RangeSelector(DisplayCanvas):
 
         self.vals = list_to_hist(self.vals)
 
-        self.NEEDREDRAW = True
+        new_min = self.range_min
+        new_max = self.range_max
 
+        self.range_min = old_min
+        self.range_max = old_max
+        
+        print (old_min, old_max, new_min, new_max)
+        self.animate_range(old_min, old_max, new_min, new_max)
+        
+        #self.NEEDREDRAW = True
+
+    def animate_range(self, old_min, old_max, new_min, new_max):
+        """Animate the display of changes in range"""
+        delta_min = (new_min - old_min) / 50
+        delta_max = (new_max - old_max) / 50
+        
+        for step in range(50):
+            #print step
+            self.range_min += delta_min
+            self.range_max += delta_max
+            self.NEEDREDRAW = True
+            time.sleep(0.01)
+
+            #print self.range_min, self.range_max
+
+            dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
+                           wx.BUFFER_CLIENT_AREA)
+            dc.Clear()  #clear old image if still there        
+            self.draw(dc)
+        
+        self.range_min = new_min
+        self.range_max = new_max
+        #self.NEEDREDRAW = True
+        
     def x_to_center(self, x):
         """from x position of the mouse event,
         determine the center of the subrange"""
@@ -255,7 +300,6 @@ class RangeSelector(DisplayCanvas):
                      self.width - 2*self.border)
 
         return ((x - self.border) * scale) + self.range_min
-
 
     def y_to_width(self, y):
         """From y of mouse position,
@@ -265,7 +309,6 @@ class RangeSelector(DisplayCanvas):
         return  ((self.bbox[3] - y) / (
                     self.bbox[3] - self.bbox[1]))*((
                     self.range_max - self.range_min) / 1.8)
-        
     
     def on_mouse(self, event):
         """Handle mouse movements"""
