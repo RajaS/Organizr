@@ -208,7 +208,45 @@ class RangeSelector(DisplayCanvas):
         on the canvas"""
         return self.border + (x - self.range_min) * (
                 (self.width - 2*self.border) / (self.range_max - self.range_min))
+
+    def reset_range(self):
+        """Reset to whole range after a reset"""
+        curr_min, curr_max = self.subrange_min, self.subrange_max
+        self.reset_steps()
+        self.subrange_min, self.subrange_max = curr_min, curr_max
+        self.NEEDREDRAW = True
+    
+    def expand_to_subrange(self):
+        """To "zoom" into the range and inspect values.
+        Expand the range by making limits same as subrange.
+        However, will not expand more than a limit"""
+        self.range_min = self.subrange_min
+        self.range_max = self.subrange_max
+
+        if self.CONTINUOUS:
+            min_width = 0.2 * (self.range[1] - self.range[0])
+            width = self.range_max - self.range_min
+            if width < min_width:
+                center = (self.range_min + self.range_max) / 2
+                devn = (min_width - width) / 2
+                self.range_min -= devn
+                self.range_max += devn
+
+            self.ticks = [self.range_min + inc*((self.range_max - self.range_min)/5)
+                          for inc in range(1,5)]
+            self.ticklabels = [self.format_val(x) for x in self.ticks]
             
+        else:
+            if self.range_max - self.range_min < 2:
+                self.range_max += 1
+                self.range_min -= 1
+
+            self.ticks = range(len(self.steps))
+            self.ticklabels = self.steps
+
+        self.vals = list_to_hist(self.vals)
+
+        self.NEEDREDRAW = True
 
     def x_to_center(self, x):
         """from x position of the mouse event,
@@ -239,17 +277,25 @@ class RangeSelector(DisplayCanvas):
                     x, y)
                 self.NEEDREDRAW = True
 
+        elif event.LeftDClick():
+            self.expand_to_subrange()
+
+        # only while testing: TODO:
+        elif event.RightIsDown():
+            self.reset_range()
+            
         else:
             event.Skip()
 
             
 def runTest(frame, nb, log):
     win = RangeSelector(nb, (0,10), [2,3,4, 2, 3, 1, 7, 8, 3, 3, 2, 3, 3, 3, 3])
-    win.CONTINUOUS = False
-    win.steps = ['0.1', '0.5', '2', '5', '7']
-    win.vals = [0.5, 0.5, 0.5,  2]
-    win.reset_steps()
+    # win.CONTINUOUS = False
+    # win.steps = ['0.1', '0.5', '2', '5', '7']
+    # win.vals = [0.5, 0.5, 0.5,  2]
+    # win.reset_steps()
     return win
+
 
 
 if __name__ == "__main__":
