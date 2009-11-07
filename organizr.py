@@ -273,10 +273,6 @@ class MainFrame(wx.Frame):
                          self.shutter_select.subrange_max)
         focal_range = (self.focal_select.subrange_min,
                        self.focal_select.subrange_max)
-        print date_range
-        print aperture_range
-        print shutter_range
-        print focal_range
 
         self.ov.rebuild_subplaylist(date_range, aperture_range,
                                           shutter_range, focal_range)
@@ -345,8 +341,6 @@ class MainFrame(wx.Frame):
                 preview_start:preview_end]
         
         self.preview  = SeriesPreview(self, preview_files)
-        print 'playlist should draw now'
-        print 'files', preview_files
         self.playlistcanvas.NEEDREDRAW = True
 
         # load and display image and thumbnail
@@ -411,7 +405,7 @@ class ApRangeSelector(RangeSelector):
         range = [1.4, 32]
         RangeSelector.__init__(self, parent, range)
         self.CONTINUOUS = False
-        self.steps = ['-1', '1.4', '1.8', '2.5', '3.2', '4', '4.5', '5',
+        self.steps = ['-1', '1.4', '1.8', '2.5', '3.5', '3.2', '4', '4.5', '5',
                       '5.6', '6.3', '7.1', '8', '10', '16', '32', '']
         self.reset_steps()
 
@@ -423,8 +417,8 @@ class ShutRangeSelector(RangeSelector):
         RangeSelector.__init__(self, parent, range)
         self.CONTINUOUS = False
         self.steps = ['-1', '1/1000', '1/800', '1/500', '1/400', '1/320',
-                      '1/250', '1/200', '1/160', '1/125', '1/100', '1/80',
-                      '1/50', '1/40', '1/30', '1/20', '1/10', '1/5', '1', '5', '']
+                      '1/250', '1/200', '1/160', '1/125', '1/100', '1/80', '1/60',
+                      '1/50', '1/40', '1/30', '1/20', '1/15', '1/10', '1/5', '1', '5', '']
         self.reset_steps()
 
     
@@ -511,7 +505,6 @@ class PlayListCanvas(DisplayCanvas):
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
-        print 'drawn'
 
     def on_mouse_events(self, event):
         """catch mouse clicks and jump to corresponding image"""
@@ -826,7 +819,7 @@ class SeriesPreview():
             xoffset = (self.tn_size - w) / 2
             yoffset = (self.tn_size - h) / 2
             self.composite.paste(self.thumbnails[index],
-                                 (x1 + xoffset, 5 + yoffset)) 
+                                 (int(x1 + xoffset), int(5 + yoffset))) 
 
         # draw box highlighting current image
         center = int(len(self.im_list) / 2)

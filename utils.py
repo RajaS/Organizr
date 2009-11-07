@@ -1,6 +1,6 @@
 
 import os
-import md5
+import hashlib
 import wx
 import datetime
 import Exifreader
@@ -37,7 +37,7 @@ def get_thumbnailfile(filename):
     """for any image filename, find the stored thumbnail.
     As per free desktop specifications, this is stored in
     the .thumbnails dir in the home directory"""
-    file_hash = md5.new('file://'+filename).hexdigest()
+    file_hash = hashlib.md5('file://'+filename).hexdigest()
     tb_filename = os.path.join(os.path.expanduser('~/.thumbnails/normal'),
                                file_hash) + '.png'
     if os.path.exists(tb_filename):

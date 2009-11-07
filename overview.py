@@ -48,18 +48,22 @@ class Overview():
         aperture_steps = self.frame.aperture_select.steps
         shutter_steps = self.frame.shutter_select.steps
         focal_steps = self.frame.focal_select.steps
+
+        print 'playlist length', len(self.playlist)
+        print 'datevals length', len(self.playlist)
         
         self.sub_playlist = [self.playlist[ind] for ind in range(len(self.playlist)) if
                 in_range(self.date_vals[ind], date_range) and
-                in_range(aperture_steps.index(self.aperture_vals[ind]), aperture_range) and
+                in_range(aperture_steps.index(self.aperture_vals[ind]),
+                         aperture_range) and
                 in_range(shutter_steps.index(self.shutter_vals[ind]), shutter_range) and
                 in_range(focal_steps.index(self.focal_vals[ind]), focal_range)]
 
-        print '---------------- debugging ------------'
-        print 'playlist', self.playlist
-        print 'date range', date_range
-        print 'dates in playlist', [self.date_vals[ind] for ind in range(len(self.playlist))]
-        print 'selected sub', self.sub_playlist
+        # print '---------------- debugging ------------'
+        # print 'playlist', self.playlist
+        # print 'date range', date_range
+        # print 'dates in playlist', [self.date_vals[ind] for ind in range(len(self.playlist))]
+        # print 'selected sub', self.sub_playlist
         
     def build_composite(self):
         """create a composite image using all the images"""
@@ -67,9 +71,10 @@ class Overview():
 
         num_pics = len(self.sub_playlist)
 
+        print 'number in subplaylist', num_pics
         ratio = ((w*h) / num_pics) ** 0.5
-        cols = w // ratio
-        rows = num_pics // cols
+        cols = int(w // ratio)
+        rows = int(num_pics // cols)
 
         self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size),
                                         (200, 200, 200))
@@ -77,7 +82,7 @@ class Overview():
         self.composite = Image.new('RGB', ((self.tn_size + 10) * cols,
                                            (self.tn_size + 10) * (rows + 1)),
                                            (255, 255, 255))
-
+        # loop thro each pic and add it
         index = 0
         for r in range(rows+1):
             for c in range(cols):
@@ -101,7 +106,7 @@ class Overview():
                 xoffset = (self.tn_size - tb_width) / 2
                 yoffset = (self.tn_size - tb_height) / 2
                     
-                self.composite.paste(tb, (x1+xoffset, y1+yoffset))
+                self.composite.paste(tb, (int(x1+xoffset), int(y1+yoffset)))
                 index += 1
 
     def load(self):
