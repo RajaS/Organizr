@@ -54,6 +54,12 @@ class Overview():
                 in_range(aperture_steps.index(self.aperture_vals[ind]), aperture_range) and
                 in_range(shutter_steps.index(self.shutter_vals[ind]), shutter_range) and
                 in_range(focal_steps.index(self.focal_vals[ind]), focal_range)]
+
+        print '---------------- debugging ------------'
+        print 'playlist', self.playlist
+        print 'date range', date_range
+        print 'dates in playlist', [self.date_vals[ind] for ind in range(len(self.playlist))]
+        print 'selected sub', self.sub_playlist
         
     def build_composite(self):
         """create a composite image using all the images"""
@@ -64,17 +70,19 @@ class Overview():
         ratio = ((w*h) / num_pics) ** 0.5
         cols = w // ratio
         rows = num_pics // cols
-        
+
         self.blankimage = Image.new('RGB', (self.tn_size, self.tn_size),
                                         (200, 200, 200))
                     
         self.composite = Image.new('RGB', ((self.tn_size + 10) * cols,
-                                           (self.tn_size + 10) * rows),
-                                   (255, 255, 255))
+                                           (self.tn_size + 10) * (rows + 1)),
+                                           (255, 255, 255))
 
         index = 0
-        for r in range(rows):
+        for r in range(rows+1):
             for c in range(cols):
+                if index == len(self.sub_playlist):
+                    break
                 filename = self.sub_playlist[index]
                 tb_file = get_thumbnailfile(filename)
                 if not tb_file:
@@ -95,7 +103,6 @@ class Overview():
                     
                 self.composite.paste(tb, (x1+xoffset, y1+yoffset))
                 index += 1
-
 
     def load(self):
         """load the composite image on the canvas"""
