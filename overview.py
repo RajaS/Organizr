@@ -45,11 +45,15 @@ class Overview():
     def rebuild_subplaylist(self, date_range,
                             aperture_range, shutter_range, focal_range):
         """Narrow down the selected images in the playlist"""
-        return [self.playlist[ind] for ind in range(len(self.playlist)) if
+        aperture_steps = self.frame.aperture_select.steps
+        shutter_steps = self.frame.shutter_select.steps
+        focal_steps = self.frame.focal_select.steps
+        
+        self.sub_playlist = [self.playlist[ind] for ind in range(len(self.playlist)) if
                 in_range(self.date_vals[ind], date_range) and
-                in_range(self.aperture_vals[ind], aperture_range) and
-                in_range(self.shutter_vals[ind], shutter_range) and
-                in_range(self.focal_vals[ind], focal_range)]
+                in_range(aperture_steps.index(self.aperture_vals[ind]), aperture_range) and
+                in_range(shutter_steps.index(self.shutter_vals[ind]), shutter_range) and
+                in_range(focal_steps.index(self.focal_vals[ind]), focal_range)]
         
     def build_composite(self):
         """create a composite image using all the images"""

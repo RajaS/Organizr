@@ -63,7 +63,7 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
 class MainFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, -1, "", style=wx.DEFAULT_FRAME_STYLE)
-        self.Maximize()
+        #self.Maximize() TODO:
 
         self.__set_properties()
 
@@ -260,11 +260,30 @@ class MainFrame(wx.Frame):
 
     def reset_range_selector(self, event):
         """reset the range in currently open range_selector"""
-        print self.nb.GetCurrentPage()
+        curr_page =  self.nb.GetCurrentPage()
+        curr_page.reset_range()
 
     def refresh_composite(self, event):
         """refresh composite to reflect currently selected subrange"""
-        pass
+        date_range = (self.date_select.subrange_min,
+                      self.date_select.subrange_max)
+        aperture_range = (self.aperture_select.subrange_min,
+                          self.aperture_select.subrange_max)
+        shutter_range = (self.shutter_select.subrange_min,
+                         self.shutter_select.subrange_max)
+        focal_range = (self.focal_select.subrange_min,
+                       self.focal_select.subrange_max)
+        print date_range
+        print aperture_range
+        print shutter_range
+        print focal_range
+
+        self.ov.rebuild_subplaylist(date_range, aperture_range,
+                                          shutter_range, focal_range)
+
+        self.ov.build_composite()
+        #self.COMPOSITE_SELECTED = True
+        self.ov.load()
         
     def onnext(self, event):
         """display next image in the playlist.
