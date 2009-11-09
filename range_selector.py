@@ -105,6 +105,20 @@ class RangeSelector(DisplayCanvas):
                 self.format_val(self.range_max)
             pass
 
+        if not self.CONTINUOUS:
+            smin = int(self.subrange_min)
+            smax = int(self.subrange_max)
+            if  smax - smin == 0:
+                self.subrange_min -= 1
+                self.subrange_max += 1
+            elif smax - smin == 1:
+                if smin > 0:
+                    self.subrange_min -= 1
+                else:
+                    self.subrange_max += 1
+            else:
+                pass
+
         # and the subrange rectangle
         dc.SetBrush(self.subrange_brush)
         x1 = self.range_to_canvas(self.subrange_min)
@@ -113,13 +127,13 @@ class RangeSelector(DisplayCanvas):
         dc.DrawRectangle(x1,self.height - self.rect_ht - self.border,
                          x2 - x1, self.rect_ht)
 
-        if not self.CONTINUOUS:
-            # why this mumbo-jumbo ?
-            self.subrange_min = int(self.subrange_min) + 1
-            self.subrange_max = int(self.subrange_max)
-            if self.subrange_min > self.subrange_max:
-                self.subrange_min = -1
-                self.subrange_max = -1
+        # if not self.CONTINUOUS:
+        #     # why this mumbo-jumbo ?
+        #     self.subrange_min = int(self.subrange_min) + 1
+        #     self.subrange_max = int(self.subrange_max)
+        #     if self.subrange_min > self.subrange_max:
+        #         self.subrange_min = -1
+        #         self.subrange_max = -1
 
         try:
             dc.DrawText(self.format_val(self.subrange_min), x1 - 10,
@@ -262,12 +276,18 @@ class RangeSelector(DisplayCanvas):
         """Animate the display of changes in range"""
         delta_min = (new_min - old_min) / 50
         delta_max = (new_max - old_max) / 50
-        
+
+        print '------------------'
+        print 'start animation'
+        print '------------------'
+
         for step in range(50):
-            #print step
             self.range_min += delta_min
             self.range_max += delta_max
-            self.NEEDREDRAW = True
+            print 'step and range', step, self.range_min, self.range_max
+            print 'subrange', self.subrange_min, self.subrange_max
+
+            #self.NEEDREDRAW = True
             time.sleep(0.01)
 
             dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
