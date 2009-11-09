@@ -19,7 +19,6 @@ def relative_time(timeobj, dawnoftime=None):
 
     return (td.days * 24 * 60 * 60) + (td.seconds)
 
-
 def reduce_fraction(fraction_string):
     """If the input string represents a fraction,
     reduce it and return to one decimal place.
