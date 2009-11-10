@@ -119,12 +119,16 @@ class SubRangeSelect(DisplayCanvas):
     def draw(self, dc):
         """Draw all the elements"""
         # range rectangle is only drawn on resizes
+        dc_font = dc.GetFont()
         if self.RESIZED:
             dc.SetBrush(self.range_brush)
             dc.DrawRectangle(self.border,
                              self.height - self.rect_ht - self.border,
                              self.rect_wd, self.rect_ht)
+            self.RESIZED = False
         # extreme values for range
+        dc_font.SetPointSize(9)
+        dc.SetFont(dc_font)
         dc.DrawText(self.format_val(self.range_min), self.border,
                     self.height - self.border)
         dc.DrawText(self.format_val(self.range_max), self.width - self.border - 20,
@@ -140,15 +144,30 @@ class SubRangeSelect(DisplayCanvas):
 
         ticklabels = [self.format_val(tick) for tick in ticks]
         tickpos = [self.val_to_canvasx(tick) for tick in ticks]
-        y1 = self.height - self.border * 0.2
+        y1 = self.height - self.border * 0.5
         y2 = self.height - self.border
         dc.SetPen(self.tick_pen)
+        dc_font.SetPointSize(8)
+        dc.SetFont(dc_font)
         for tickx, label in zip(tickpos, ticklabels):
             dc.DrawLine(tickx, y1, tickx, y2)
-            dc.DrawText(label, tickx, self.height - self.border)
-            
+            dc.DrawText(label, tickx + 2, self.height - self.border + 2)
         
         # draw subrange
+        dc.SetBrush(self.subrange_brush)
+        x1 = self.val_to_canvasx(self.subrange_min)
+        x2 = self.val_to_canvasx(self.subrange_max)
+        dc.DrawRectangle(x1,self.height - self.rect_ht - self.border,
+                         x2 - x1, self.rect_ht)
+        # subrange extrema values
+        dc_font.SetPointSize(9)
+        dc.SetFont(dc_font)
+        dc.DrawText(self.format_val(self.subrange_min), x1 - 10,
+                    self.height - self.rect_ht - 2*self.border)
+        dc.DrawText(self.format_val(self.subrange_max), x2,
+                    self.height - self.rect_ht - 2* self.border)        
+
+            
         # draw subrange values
 
     def format_val(self, val, min=False, max=False):
@@ -157,8 +176,12 @@ class SubRangeSelect(DisplayCanvas):
             return '%0.1f' % (val)
         else:
             # can format differently based on min/max/neither
-            print 'formatting', self.steps, val
-            return self.steps[val]
+            if min:
+                return self.steps[int(val) + 1]
+            elif max:
+                return self.steps[int(val)]
+            else:
+                return self.steps[int(val)]
     
     def run_tests(self):
         # tests for val_to_canvasx and canvasx_to_val
@@ -171,7 +194,7 @@ class SubRangeSelect(DisplayCanvas):
 
     
 def runTest(frame, nb, log):
-    Cont_Test = 1
+    Cont_Test = 0
     if Cont_Test:
         win = SubRangeSelect(nb, [2,3,4, 2, 3, 1, 7, 8, 3, 3, 2, 3, 3, 3, 3])
     else:
