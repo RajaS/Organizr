@@ -119,10 +119,11 @@ class SubRangeSelect(DisplayCanvas):
     def draw(self, dc):
         """Draw all the elements"""
         # range rectangle is only drawn on resizes
-        dc.SetBrush(self.range_brush)
-        dc.DrawRectangle(self.border,
-                         self.height - self.rect_ht - self.border,
-                         self.rect_wd, self.rect_ht)
+        if self.RESIZED:
+            dc.SetBrush(self.range_brush)
+            dc.DrawRectangle(self.border,
+                             self.height - self.rect_ht - self.border,
+                             self.rect_wd, self.rect_ht)
         # extreme values for range
         dc.DrawText(self.format_val(self.range_min), self.border,
                     self.height - self.border)
