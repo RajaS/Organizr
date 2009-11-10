@@ -242,7 +242,7 @@ class MainFrame(wx.Frame):
         self.date_select.vals = self.ov.date_vals
         self.date_select.range = [min(self.date_select.vals),
                                   max(self.date_select.vals)]
-        self.date_select.reset_steps()
+        self.date_select.initialise_vals()
         self.date_select.ticks = []
         self.date_select.ticklabels = []
         
@@ -250,9 +250,13 @@ class MainFrame(wx.Frame):
         self.shutter_select.vals = self.ov.shutter_vals
         self.focal_select.vals = self.ov.focal_vals
         
-        self.aperture_select.reset_steps()
-        self.shutter_select.reset_steps()
-        self.focal_select.reset_steps()
+        self.aperture_select.initialise_vals()
+        self.shutter_select.initialise_vals()
+        self.focal_select.initialise_vals()
+        #self.aperture_select.reset_steps()
+        #self.shutter_select.reset_steps()
+        #self.focal_select.reset_steps()
+
         
         self.toggle_splitter.SplitVertically(self.playlistcanvas,
                                              self.composite_control)
@@ -389,7 +393,7 @@ class DateRangeSelector(RangeSelector):
     """select from available shooting dates"""
     def __init__(self, parent):
         range = [1,1000] # TODO
-        RangeSelector.__init__(self, parent, range)
+        RangeSelector.__init__(self, parent, range, CONTINUOUS=True)
 
     def format_val(self, val):
         """convert from utc time to readable format"""
@@ -403,33 +407,31 @@ class ApRangeSelector(RangeSelector):
     """select range of aperture values"""
     def __init__(self, parent):
         range = [1.4, 32]
-        RangeSelector.__init__(self, parent, range)
-        self.CONTINUOUS = False
+        RangeSelector.__init__(self, parent, range,  CONTINUOUS=False)
         self.steps = ['-1', '1.4', '1.8', '2.5', '3.5', '3.2', '4', '4.5', '5',
                       '5.6', '6.3', '7.1', '8', '10', '16', '32', '']
-        self.reset_steps()
+        #self.initialise_vals()
 
         
 class ShutRangeSelector(RangeSelector):
     """Selecte range of shutter times"""
     def __init__(self, parent):
         range = [0.0001, 5]
-        RangeSelector.__init__(self, parent, range)
-        self.CONTINUOUS = False
+        RangeSelector.__init__(self, parent, range, CONTINUOUS=False)
         self.steps = ['-1', '1/1000', '1/800', '1/500', '1/400', '1/320',
                       '1/250', '1/200', '1/160', '1/125', '1/100', '1/80', '1/60',
                       '1/50', '1/40', '1/30', '1/20', '1/15', '1/10', '1/5', '1', '5', '']
-        self.reset_steps()
+        #self.initialise_vals()
 
     
 class FocRangeSelector(RangeSelector):
     """Select range of focal lengths"""
     def __init__(self, parent):
         range = [12, 400]
-        RangeSelector.__init__(self, parent, range)
-        self.CONTINUOUS = False
+        RangeSelector.__init__(self, parent, range, CONTINUOUS=False)
+        #self.CONTINUOUS = False
         self.steps = ['-1', '17', '30', '50', '70', '100', '200', '300', '']
-        self.reset_steps()
+        #self.initialise_vals()
 
         
 class ImageCanvas(DisplayCanvas):

@@ -20,43 +20,56 @@ class RangeSelector(DisplayCanvas):
 	"""
         DisplayCanvas.__init__(self, parent)
         self.range = range
-        #self.vals = vals
+        self.vals = vals
         self.steps = steps
         self.CONTINUOUS = CONTINUOUS
-
-        if not self.CONTINUOUS:
-            vals = [self.steps.index(val) for val in vals]
-        self.vals = list_to_hist(vals)
-
+        
+        #self.initialise_vals()
         self.range_brush = wx.Brush((200, 200, 200), wx.SOLID)
         self.subrange_brush = wx.Brush((100, 100, 100), wx.SOLID)
         self.border = 20
         
         self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse)
 
+        self.initialise_vals()
         self.reset_steps() # can call again from subclass
         self.NEEDREDRAW = True
 
-        
-    def reset_steps(self):
-        """Initial set up and resetting of range and subrange
-        values"""
-        if self.CONTINUOUS:
-            self.range_min, self.range_max = self.range
-            self.ticks = [self.range_min + inc*((self.range_max - self.range_min)/5)
-                          for inc in range(1,5)]
-            self.ticklabels = [self.format_val(x) for x in self.ticks]
-            #self.vals = list_to_hist(vals)
-            
-        else:
-            # discrete data is represented as indexed steps
+    def initialise_vals(self):
+        if not self.CONTINUOUS:
             self.range_min = 0
             self.range_max = len(self.steps) - 1
             self.ticks = range(len(self.steps))
             self.ticklabels = self.steps
+            self.vals = [self.steps.index(val) for val in self.vals]
 
+        else:
+            self.range_min, self.range_max = self.range
+            self.ticks = [self.range_min + inc*((self.range_max - self.range_min)/5)
+                          for inc in range(1,5)]
+            self.ticklabels = [self.format_val(x) for x in self.ticks]
 
-            #self.vals = list_to_hist(self.vals)
+        self.subrange_min = self.range_min
+        self.subrange_max = self.range_max
+        self.vals = list_to_hist(self.vals)
+        
+    def reset_steps(self):
+        """Initial set up and resetting of range and subrange
+        values"""
+
+        # if self.CONTINUOUS:
+        #     self.range_min, self.range_max = self.range
+        #     self.ticks = [self.range_min + inc*((self.range_max - self.range_min)/5)
+        #                   for inc in range(1,5)]
+        #     self.ticklabels = [self.format_val(x) for x in self.ticks]
+            
+        # else:
+        #     # discrete data is represented as indexed steps
+        #     self.range_min = 0
+        #     self.range_max = len(self.steps) - 1
+        #     self.ticks = range(len(self.steps))
+        #     self.ticklabels = self.steps
+
         self.subrange_min = self.range_min
         self.subrange_max = self.range_max
 
@@ -105,20 +118,6 @@ class RangeSelector(DisplayCanvas):
                 self.format_val(self.range_max)
             pass
 
-        if not self.CONTINUOUS:
-            smin = int(self.subrange_min)
-            smax = int(self.subrange_max)
-            if  smax - smin == 0:
-                self.subrange_min -= 1
-                self.subrange_max += 1
-            elif smax - smin == 1:
-                if smin > 0:
-                    self.subrange_min -= 1
-                else:
-                    self.subrange_max += 1
-            else:
-                pass
-
         # and the subrange rectangle
         dc.SetBrush(self.subrange_brush)
         x1 = self.range_to_canvas(self.subrange_min)
@@ -126,14 +125,6 @@ class RangeSelector(DisplayCanvas):
         print 'drawing subrange', x1, x2
         dc.DrawRectangle(x1,self.height - self.rect_ht - self.border,
                          x2 - x1, self.rect_ht)
-
-        # if not self.CONTINUOUS:
-        #     # why this mumbo-jumbo ?
-        #     self.subrange_min = int(self.subrange_min) + 1
-        #     self.subrange_max = int(self.subrange_max)
-        #     if self.subrange_min > self.subrange_max:
-        #         self.subrange_min = -1
-        #         self.subrange_max = -1
 
         try:
             dc.DrawText(self.format_val(self.subrange_min), x1 - 10,
@@ -190,7 +181,7 @@ class RangeSelector(DisplayCanvas):
                     dc.DrawRectangle(x-half_width, y1-sq_width,
                                      sq_width, sq_width)
 
-    def format_val(self, val, extreme=False, tick=False):
+    def format_val(self, val, min=False, max=False, tick=False):
         """Format the values in the range into readable
         form. Note that this may be customized in the subclasses.
         Can also customize to vary depending on whether val
@@ -200,6 +191,10 @@ class RangeSelector(DisplayCanvas):
         else:
             if val == -1:
                 return ''
+            elif min:
+                return self.steps[int(val) + 1]
+            elif max:
+                return self.steps[int(val)]
             else:
                 return self.steps[int(val)]
         
@@ -261,6 +256,8 @@ class RangeSelector(DisplayCanvas):
             self.ticklabels = [self.format_val(x) for x in self.ticks]
             
         else:
+            new_max = int(new_max)
+            new_min = int(new_min)
             if new_max - new_min < 2:
                 new_max += 1
                 new_min -= 1
@@ -344,7 +341,7 @@ def runTest(frame, nb, log):
 
     else:
         win = RangeSelector(nb, ('1/5', '2'), ['1/5', '1/5', '1/3', '1', '1', '1'],
-                            ['1/5', '1/3', '1/2', '1', '2', '3'], False)
+                            ['', '1/5', '1/3', '1/2', '1', '2', '3', ''], False)
 
     return win
 
