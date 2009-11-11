@@ -3,9 +3,8 @@ a subrange from among a range of values"""
 
 from __future__ import division
 import wx
-import time
 
-from utils import DisplayCanvas
+from utils import DisplayCanvas, list_to_hist, in_rectangle
 
 
 class SubRangeSelect(DisplayCanvas):
@@ -30,8 +29,8 @@ class SubRangeSelect(DisplayCanvas):
         self._init_range() #call if vals and steps changes
 
         self.on_resize(None)
-        self.run_tests()
-        
+        self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse)
+                
     def on_resize(self, event):
             """when canvas  is resized, we create a new buffer, which will
             be redrawn on next idle event. This is also the ideal time to
@@ -55,9 +54,40 @@ class SubRangeSelect(DisplayCanvas):
             wx.Image.SetRGBRect(image, wx.Rect(0, 0, self.width, self.height),
                                 255, 255, 255)        
             self.buffer = wx.BitmapFromImage(image)
-            self.RESIZED = True
             self.NEEDREDRAW = True
-            
+
+    def on_mouse(self, event):
+        """handle mouse events"""
+        x, y = event.GetPosition()
+        # left click and drag to change subrange
+        if event.LeftIsDown() and event.Dragging():
+            if in_rectangle((x,y), self.bbox):
+                self.subrange_min, self.subrange_max = self.get_subrange(
+                    x, y)
+                self.NEEDREDRAW = True
+        # double click to expand range
+        elif event.LeftDClick():
+            self.expand_to_subrange()
+        # right click to reset range
+        elif event.RightIsDown():
+            self.range_min, self.range_max = self.full_range
+            self.NEEDREDRAW = True
+
+    def expand_to_subrange(self):
+        """zoom into the range, expanding to the full subrange
+        or to maximum allowable zoom"""
+        old_x1, old_x2 = self.range_min, self.range_max
+        new_x1, new_x2 = self.subrange_min, self.subrange_max
+
+        #for now, no limits on zoom
+        self.animate_range((old_x1, old_x2), (new_x1, new_x2))
+
+    def animate_range(self, old_lims, new_lims):
+        """Animate the shift of range from old to new lims"""
+        # TODO
+        self.range_min, self.range_max = new_lims
+        self.NEEDREDRAW = True
+        
     def _init_range(self):
         """Initialise range limits from vals / steps.
         For discrete vals, also convert vals to indices"""
@@ -72,17 +102,18 @@ class SubRangeSelect(DisplayCanvas):
             self.subrange_max = self.val_max
 
         else:
-            # range goes from -1 to length
-            self.range_min = -1
-            self.range_max = len(self.steps)
+            self.range_min = -0.5
+            self.range_max = len(self.steps)-0.5
 
-            self.steps += [''] # blank at end will serve as the range limit
             self.vals = [self.steps.index(val)
                          for val in self.vals]
             
-            self.subrange_min = -0.5
+            self.subrange_min = self.range_min + 0.5
             self.subrange_max = self.range_max - 0.5
 
+        self.vals_hist = list_to_hist(self.vals)
+        self.full_range = (self.range_min, self.range_max)
+        
     def val_to_canvasx(self, val):
         """convert a value to the x position of the canvas"""
         canvas_x1 = self.border # left edge of rectangle
@@ -120,12 +151,10 @@ class SubRangeSelect(DisplayCanvas):
         """Draw all the elements"""
         # range rectangle is only drawn on resizes
         dc_font = dc.GetFont()
-        if self.RESIZED:
-            dc.SetBrush(self.range_brush)
-            dc.DrawRectangle(self.border,
-                             self.height - self.rect_ht - self.border,
-                             self.rect_wd, self.rect_ht)
-            self.RESIZED = False
+        dc.SetBrush(self.range_brush)
+        dc.DrawRectangle(self.border,
+                         self.height - self.rect_ht - self.border,
+                         self.rect_wd, self.rect_ht)
         # extreme values for range
         dc_font.SetPointSize(9)
         dc.SetFont(dc_font)
@@ -140,7 +169,7 @@ class SubRangeSelect(DisplayCanvas):
                      for multiple in range(4)]
         else:
             # range_min and max are always integers, interval is always 1
-            ticks = range(self.range_min +1, self.range_max)
+            ticks = range(self.range_min+1, self.range_max+1)
 
         ticklabels = [self.format_val(tick) for tick in ticks]
         tickpos = [self.val_to_canvasx(tick) for tick in ticks]
@@ -150,6 +179,7 @@ class SubRangeSelect(DisplayCanvas):
         dc_font.SetPointSize(8)
         dc.SetFont(dc_font)
         for tickx, label in zip(tickpos, ticklabels):
+            print 'drawing ticks', tickx, label
             dc.DrawLine(tickx, y1, tickx, y2)
             dc.DrawText(label, tickx + 2, self.height - self.border + 2)
         
@@ -162,26 +192,65 @@ class SubRangeSelect(DisplayCanvas):
         # subrange extrema values
         dc_font.SetPointSize(9)
         dc.SetFont(dc_font)
-        dc.DrawText(self.format_val(self.subrange_min), x1 - 10,
+        dc.DrawText(self.format_val(self.subrange_min, min=True), x1 - 10,
                     self.height - self.rect_ht - 2*self.border)
-        dc.DrawText(self.format_val(self.subrange_max), x2,
+        dc.DrawText(self.format_val(self.subrange_max, max=True), x2,
                     self.height - self.rect_ht - 2* self.border)        
 
-            
-        # draw subrange values
+        # draw values
+        self.draw_vals(dc)
+
+        self.NEEDREDRAW = False
+
+    def draw_vals(self, dc):
+        """Draw the individual values.
+        Self.vals is already in the histogram format"""
+        dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
+        dc.SetBrush(wx.Brush(wx.RED, wx.SOLID))
+        
+        y1 = self.height - self.border - self.rect_ht/10
+
+        print 'vals', self.vals_hist
+        for val in self.vals_hist:
+            val_count = self.vals_hist[val]
+            x = self.val_to_canvasx(val)
+
+            if self.CONTINUOUS:
+                dc.DrawLine(x, y1, x, y1 - val_count)
+
+            else:
+                # draw as ' squares' for discrete variables
+                max_width = self.val_to_canvasx(1) - 4
+                sq_width = int(val_count ** 0.5) + 1
+                half_width = sq_width // 2
+
+                if val_count == 1:
+                    dc.DrawPoint(x, y1)
+                elif sq_width > max_width:
+                    ht = int(val_count / max_width)
+                    dc.DrawRectangle(x - max_width//2, y1 - ht,
+                                     max_width, ht)
+                else:
+                    dc.DrawRectangle(x-half_width, y1-sq_width,
+                                     sq_width, sq_width)
+        
 
     def format_val(self, val, min=False, max=False):
         """Return a formatted form of a value suitable for printing"""
         if self.CONTINUOUS:
             return '%0.1f' % (val)
         else:
+            print 'formatting', val
             # can format differently based on min/max/neither
             if min:
                 return self.steps[int(val) + 1]
             elif max:
                 return self.steps[int(val)]
             else:
-                return self.steps[int(val)]
+                if val < 0 or int(val) != val:
+                    return ''
+                else:
+                    return self.steps[int(val)]
     
     def run_tests(self):
         # tests for val_to_canvasx and canvasx_to_val
