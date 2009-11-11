@@ -216,19 +216,16 @@ class SubRangeSelect(DisplayCanvas):
         Self.vals is already in the histogram format"""
         dc.SetPen(wx.Pen(wx.RED, 2, wx.SOLID))
         dc.SetBrush(wx.Brush(wx.RED, wx.SOLID))
-        
         y1 = self.height - self.border - self.rect_ht/10
 
         for val in self.vals_hist:
             val_count = self.vals_hist[val]
             x = self.val_to_canvasx(val)
-
             if self.CONTINUOUS:
                 dc.DrawLine(x, y1, x, y1 - val_count)
-
             else:
                 # draw as ' squares' for discrete variables
-                max_width = self.val_to_canvasx(1) - 4
+                max_width = self.val_to_canvasx(1) - self.val_to_canvasx(0) - 4
                 sq_width = int(val_count ** 0.5) + 1
                 half_width = sq_width // 2
 
