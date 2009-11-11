@@ -263,20 +263,14 @@ class MainFrame(wx.Frame):
 
     def refresh_composite(self, event):
         """refresh composite to reflect currently selected subrange"""
-        date_range = (self.date_select.subrange_min,
-                      self.date_select.subrange_max)
-        aperture_range = (self.aperture_select.subrange_min,
-                          self.aperture_select.subrange_max)
-        shutter_range = (self.shutter_select.subrange_min,
-                         self.shutter_select.subrange_max)
-        focal_range = (self.focal_select.subrange_min,
-                       self.focal_select.subrange_max)
+        date_range = self.date_select.get_selection()
+        aperture_range = self.aperture_select.get_selection()
+        shutter_range = self.shutter_select.get_selection()
+        focal_range = self.focal_select.get_selection()
 
         self.ov.rebuild_subplaylist(date_range, aperture_range,
-                                          shutter_range, focal_range)
-
+                                           shutter_range, focal_range)
         self.ov.build_composite()
-        #self.COMPOSITE_SELECTED = True
         self.ov.load()
         
     def onnext(self, event):
@@ -399,7 +393,7 @@ class ApRangeSelector(SubRangeSelect):
     """select range of aperture values"""
     def __init__(self, parent):
         steps = ['1.4', '1.8', '2.5', '3.5', '3.2', '4', '4.5', '5',
-                      '5.6', '6.3', '7.1', '8', '10', '16', '32']
+                      '5.6', '6.3', '7.1', '8', '10', '13', '16', '32']
         SubRangeSelect.__init__(self, parent, steps=steps, CONTINUOUS=False)
         
 class ShutRangeSelector(SubRangeSelect):

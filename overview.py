@@ -48,9 +48,6 @@ class Overview():
         aperture_steps = self.frame.aperture_select.steps
         shutter_steps = self.frame.shutter_select.steps
         focal_steps = self.frame.focal_select.steps
-
-        print 'playlist length', len(self.playlist)
-        print 'datevals length', len(self.playlist)
         
         self.sub_playlist = [self.playlist[ind] for ind in range(len(self.playlist)) if
                 in_range(self.date_vals[ind], date_range) and
@@ -59,11 +56,6 @@ class Overview():
                 in_range(shutter_steps.index(self.shutter_vals[ind]), shutter_range) and
                 in_range(focal_steps.index(self.focal_vals[ind]), focal_range)]
 
-        # print '---------------- debugging ------------'
-        # print 'playlist', self.playlist
-        # print 'date range', date_range
-        # print 'dates in playlist', [self.date_vals[ind] for ind in range(len(self.playlist))]
-        # print 'selected sub', self.sub_playlist
         
     def build_composite(self):
         """create a composite image using all the images"""
