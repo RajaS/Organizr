@@ -179,7 +179,6 @@ class SubRangeSelect(DisplayCanvas):
         dc_font.SetPointSize(8)
         dc.SetFont(dc_font)
         for tickx, label in zip(tickpos, ticklabels):
-            print 'drawing ticks', tickx, label
             dc.DrawLine(tickx, y1, tickx, y2)
             dc.DrawText(label, tickx + 2, self.height - self.border + 2)
         
@@ -192,9 +191,19 @@ class SubRangeSelect(DisplayCanvas):
         # subrange extrema values
         dc_font.SetPointSize(9)
         dc.SetFont(dc_font)
-        dc.DrawText(self.format_val(self.subrange_min, min=True), x1 - 10,
+        min_string = self.format_val(self.subrange_min, min=True)
+        max_string = self.format_val(self.subrange_max, max=True)
+        # no subrange when no intervening step, handle edge case
+        if int(self.subrange_min) == int(self.subrange_max):
+            if self.subrange_min < 0 and self.subrange_max > 0:
+                pass
+            else:
+                min_string = ''
+                max_string = ''
+        
+        dc.DrawText(min_string, x1 - 10,
                     self.height - self.rect_ht - 2*self.border)
-        dc.DrawText(self.format_val(self.subrange_max, max=True), x2,
+        dc.DrawText(max_string, x2,
                     self.height - self.rect_ht - 2* self.border)        
 
         # draw values
@@ -210,7 +219,6 @@ class SubRangeSelect(DisplayCanvas):
         
         y1 = self.height - self.border - self.rect_ht/10
 
-        print 'vals', self.vals_hist
         for val in self.vals_hist:
             val_count = self.vals_hist[val]
             x = self.val_to_canvasx(val)
@@ -240,10 +248,12 @@ class SubRangeSelect(DisplayCanvas):
         if self.CONTINUOUS:
             return '%0.1f' % (val)
         else:
-            print 'formatting', val
             # can format differently based on min/max/neither
             if min:
-                return self.steps[int(val) + 1]
+                if val < 0:
+                    return self.steps[0]
+                else:
+                    return self.steps[int(val) + 1]
             elif max:
                 return self.steps[int(val)]
             else:
