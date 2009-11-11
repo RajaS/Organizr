@@ -1,0 +1,4 @@
+
+* TODO warn when leaving behind orphan raw file
+* TODO make list of raw file formats to look for
+* TODO Add delete all (only jpg or jpg and raw depending)

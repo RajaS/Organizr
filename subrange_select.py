@@ -3,7 +3,7 @@ a subrange from among a range of values"""
 
 from __future__ import division
 import wx
-
+import time
 from utils import DisplayCanvas, list_to_hist, in_rectangle
 
 
@@ -25,8 +25,9 @@ class SubRangeSelect(DisplayCanvas):
         self.range_brush = wx.Brush((200, 200, 200), wx.SOLID)
         self.subrange_brush = wx.Brush((100, 100, 100), wx.SOLID)
         self.tick_pen = wx.Pen(wx.BLACK, 1, wx.SOLID)
-        
-        self._init_range() #call if vals and steps changes
+
+        if vals != []:
+            self._init_range() #call if vals and steps changes
 
         self.on_resize(None)
         self.Bind(wx.EVT_MOUSE_EVENTS, self.on_mouse)
@@ -54,7 +55,9 @@ class SubRangeSelect(DisplayCanvas):
             wx.Image.SetRGBRect(image, wx.Rect(0, 0, self.width, self.height),
                                 255, 255, 255)        
             self.buffer = wx.BitmapFromImage(image)
-            self.NEEDREDRAW = True
+
+            if self.vals != []:
+                self.NEEDREDRAW = True
 
     def on_mouse(self, event):
         """handle mouse events"""
@@ -84,9 +87,23 @@ class SubRangeSelect(DisplayCanvas):
 
     def animate_range(self, old_lims, new_lims):
         """Animate the shift of range from old to new lims"""
-        # TODO
-        self.range_min, self.range_max = new_lims
-        self.NEEDREDRAW = True
+        steps = 50
+        old_x1, old_x2 = old_lims
+        new_x1, new_x2 = new_lims
+        delta_x1 = (new_x1 - old_x1) / steps
+        delta_x2 = (new_x2 - old_x2) / steps
+
+        for step in range(steps):
+            self.range_min += delta_x1
+            self.range_max += delta_x2
+            time.sleep(0.01)
+            dc = wx.BufferedDC(wx.ClientDC(self), self.buffer,
+                           wx.BUFFER_CLIENT_AREA)
+            dc.Clear()  #clear old image if still there        
+            self.draw(dc)
+        
+        self.range_min = new_x1
+        self.range_max = new_x2
         
     def _init_range(self):
         """Initialise range limits from vals / steps.
@@ -270,7 +287,7 @@ class SubRangeSelect(DisplayCanvas):
 
     
 def runTest(frame, nb, log):
-    Cont_Test = 0
+    Cont_Test = 1
     if Cont_Test:
         win = SubRangeSelect(nb, [2,3,4, 2, 3, 1, 7, 8, 3, 3, 2, 3, 3, 3, 3])
     else:
