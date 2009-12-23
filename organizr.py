@@ -902,10 +902,10 @@ class Im():
                            self.zoom_xcenter + newwidth/2,
                            self.zoom_ycenter + newheight/2]]
         #
-        # if self.zoom_xoffset < 0:
-        #     self.zoom_xoffset = 0
-        # if self.zoom_yoffset < 0:
-        #     self.zoom_yoffset = 0
+        if self.zoom_xcenter < newwidth/2:
+            self.zoom_xcenter = newwidth/2
+        if self.zoom_ycenter < newheight/2:
+            self.zoom_ycenter = newheight/2
 
         self.image = self.original_image.crop(self.zoomframe)
 
