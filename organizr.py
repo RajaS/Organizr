@@ -873,6 +873,10 @@ class Im():
         as multiple of that size
         If offsets are not given center the zoom
         """
+        print 'offsets'
+        print self.zoom_xoffset
+        print self.zoom_yoffset
+        
         scale = self.zoom_ratio
         #xoffset = self.zoom_xoffset; yoffset = self.zoom_yoffset
         frame = []

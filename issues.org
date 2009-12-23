@@ -2,3 +2,6 @@
 * TODO warn when leaving behind orphan raw file
 * TODO make list of raw file formats to look for
 * TODO Add delete all (only jpg or jpg and raw depending)
+* TODO Zoom does not retain x,y coords
+* TODO when moving zoom frame, increments should be a fraction of image size
+* TODO Add ability to pan image with mouse
