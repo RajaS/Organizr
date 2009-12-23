@@ -422,8 +422,8 @@ class ImageCanvas(DisplayCanvas):
         self.frame = wx.GetTopLevelParent(self)
 
         self.zoom_ratio = 1
-        self.zoom_xoffset = None
-        self.zoom_yoffset = None
+        self.zoom_xcenter = None
+        self.zoom_ycenter = None
         
         self.SetFocus() # to catch key events
     
@@ -847,8 +847,8 @@ class Im():
                 pass # no exif orientation info    
 
         self.width, self.height = self.original_image.size
-        self.zoom_xoffset = None
-        self.zoom_yoffset = None
+        self.zoom_xcenter = None
+        self.zoom_ycenter = None
         self.zoom_ratio = 1
         self.zoomframe = (0, 0, 0, 0)
         # on loading, there is no zoom
@@ -874,8 +874,8 @@ class Im():
         If offsets are not given center the zoom
         """
         print 'offsets'
-        print self.zoom_xoffset
-        print self.zoom_yoffset
+        print self.zoom_xcenter
+        print self.zoom_ycenter
         
         scale = self.zoom_ratio
         #xoffset = self.zoom_xoffset; yoffset = self.zoom_yoffset
@@ -883,28 +883,29 @@ class Im():
         newwidth = self.width / scale
         newheight = self.height / scale
 
-        if self.zoom_xoffset == None:
+        if self.zoom_xcenter == None:
             # the zoom frame is centered
-            self.zoom_xoffset = (self.width - newwidth) / 2
+            self.zoom_xcenter = self.width / 2
         else:
-            self.zoom_xoffset = min(self.zoom_xoffset,
-                                    self.width - newwidth)
+            self.zoom_xcenter = min(self.zoom_xcenter,
+                                    self.width - newwidth/2)
 
-        if self.zoom_yoffset == None:
-            self.zoom_yoffset = (self.height - newheight) / 2
+        if self.zoom_ycenter == None:
+            self.zoom_ycenter = self.height / 2
         else:
-            self.zoom_yoffset = min(self.zoom_yoffset,
-                                    self.height - newheight)
+            self.zoom_ycenter = min(self.zoom_ycenter,
+                                    self.height - newheight/2)
 
         self.zoomframe = [int(value) for value in
-                          [self.zoom_xoffset, self.zoom_yoffset,
-                           self.zoom_xoffset + newwidth,
-                           self.zoom_yoffset + newheight]]
+                          [self.zoom_xcenter - newwidth/2,
+                           self.zoom_ycenter - newheight/2,
+                           self.zoom_xcenter + newwidth/2,
+                           self.zoom_ycenter + newheight/2]]
         #
-        if self.zoom_xoffset < 0:
-            self.zoom_xoffset = 0
-        if self.zoom_yoffset < 0:
-            self.zoom_yoffset = 0
+        # if self.zoom_xoffset < 0:
+        #     self.zoom_xoffset = 0
+        # if self.zoom_yoffset < 0:
+        #     self.zoom_yoffset = 0
 
         self.image = self.original_image.crop(self.zoomframe)
 
@@ -931,13 +932,13 @@ class Im():
         key = event.GetKeyCode()
 
         if key == 314:
-            self.zoom_xoffset += self.SHIFTZOOMSTEP
+            self.zoom_xcenter += self.SHIFTZOOMSTEP
         elif key == 315:
-            self.zoom_yoffset += self.SHIFTZOOMSTEP
+            self.zoom_ycenter += self.SHIFTZOOMSTEP
         elif key == 316:
-            self.zoom_xoffset -= self.SHIFTZOOMSTEP
+            self.zoom_xcenter -= self.SHIFTZOOMSTEP
         elif key == 317:
-            self.zoom_yoffset -= self.SHIFTZOOMSTEP
+            self.zoom_ycenter -= self.SHIFTZOOMSTEP
 
         self.zoom()
         
