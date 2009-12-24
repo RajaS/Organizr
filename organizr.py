@@ -449,7 +449,7 @@ class ImageCanvas(DisplayCanvas):
         """Redraw the image"""
         self.resize_image()
         # blit the buffer on to the screen
-        #w, h = self.frame.im.image.size
+         #w, h = self.frame.im.image.size
         dc.Blit(self.xoffset, self.yoffset,
                 self.resized_width, self.resized_height, self.imagedc,
                 0, 0)
@@ -572,8 +572,15 @@ class ThumbnailCanvas(DisplayCanvas):
                 else:
                     (self.x1, self.y1, self.x2, self.y2) = copy.deepcopy(
                         (x1, y1, x2, y2))
-                
+
                 self.frame.im.zoomframe = self.reverse_translate_frame()
+                self.frame.im.zoom_xcenter = (self.frame.im.zoomframe[0] +
+                                           self.frame.im.zoomframe[2]) // 2
+                self.frame.im.zoom_ycenter = (self.frame.im.zoomframe[1] +
+                                           self.frame.im.zoomframe[3]) // 2
+
+                print 'centers are now'
+                print self.frame.im.zoom_xcenter, self.frame.im.zoom_xcenter
                 self.frame.canvas.NEEDREDRAW = True
                 self.NEEDREDRAW = True
                 self.NEEDREDRAWFRAME = True
@@ -873,7 +880,7 @@ class Im():
         as multiple of that size
         If offsets are not given center the zoom
         """
-        print 'offsets'
+        print 'centers inside zoom'
         print self.zoom_xcenter
         print self.zoom_ycenter
         
@@ -907,6 +914,8 @@ class Im():
         if self.zoom_ycenter < newheight/2:
             self.zoom_ycenter = newheight/2
 
+        print 'zoomframe', self.zoomframe
+        print '---------------'
         self.image = self.original_image.crop(self.zoomframe)
 
         self.frame.canvas.NEEDREDRAW = True
