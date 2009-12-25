@@ -579,8 +579,6 @@ class ThumbnailCanvas(DisplayCanvas):
                 self.frame.im.zoom_ycenter = (self.frame.im.zoomframe[1] +
                                            self.frame.im.zoomframe[3]) // 2
 
-                print 'centers are now'
-                print self.frame.im.zoom_xcenter, self.frame.im.zoom_xcenter
                 self.frame.canvas.NEEDREDRAW = True
                 self.NEEDREDRAW = True
                 self.NEEDREDRAWFRAME = True
@@ -831,7 +829,8 @@ class Im():
         self.width = 1; self.height = 1
         self.zoomframe = (0, 0, 0, 0)
         self.ZOOMSTEP = 1.1
-        self.SHIFTZOOMSTEP = 5
+        self.SHIFTZOOMSTEP_X = self.image.size[0] // 20 #5
+        self.SHIFTZOOMSTEP_Y = self.image.size[1] // 20
         
     def load(self):
         """load as a wx bitmap"""
@@ -880,10 +879,6 @@ class Im():
         as multiple of that size
         If offsets are not given center the zoom
         """
-        print 'centers inside zoom'
-        print self.zoom_xcenter
-        print self.zoom_ycenter
-        
         scale = self.zoom_ratio
         #xoffset = self.zoom_xoffset; yoffset = self.zoom_yoffset
         frame = []
@@ -914,8 +909,6 @@ class Im():
         if self.zoom_ycenter < newheight/2:
             self.zoom_ycenter = newheight/2
 
-        print 'zoomframe', self.zoomframe
-        print '---------------'
         self.image = self.original_image.crop(self.zoomframe)
 
         self.frame.canvas.NEEDREDRAW = True
@@ -940,14 +933,15 @@ class Im():
     def shift_zoom_frame(self, event):
         key = event.GetKeyCode()
 
+        print key
         if key == 314:
-            self.zoom_xcenter += self.SHIFTZOOMSTEP
+            self.zoom_xcenter -= self.SHIFTZOOMSTEP_X
         elif key == 315:
-            self.zoom_ycenter += self.SHIFTZOOMSTEP
+            self.zoom_ycenter -= self.SHIFTZOOMSTEP_Y
         elif key == 316:
-            self.zoom_xcenter -= self.SHIFTZOOMSTEP
+            self.zoom_xcenter += self.SHIFTZOOMSTEP_X
         elif key == 317:
-            self.zoom_ycenter -= self.SHIFTZOOMSTEP
+            self.zoom_ycenter += self.SHIFTZOOMSTEP_Y
 
         self.zoom()
         
